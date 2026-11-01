@@ -3332,6 +3332,2506 @@
         </div>
         <div class="space-y-2">
             <label id="welcomeNamePromptText" class="block text-xs font-bold text-white mb-1.5">告訴我們該怎麼稱呼您：</label>
+            <!-- 在這裡加入 onkeypress，讓手機鍵盤的 Enter 也能觸發 -->
+            <input type="text" id="welcomeNameInput" onkeypress="if(event.key === 'Enter') closeWelcomeModal()" placeholder="輸入您的稱呼 (例如：小明)" class="w-full px-4 py-3 bg-[#202020] border border-[#333333] rounded-xl text-white font-semibold text-sm focus:outline-none focus:border-[#1DB954] transition">
+        </div>
+        <div class="flex items-center space-x-2 pt-1">
+            <input type="checkbox" id="dontShowAgainCheck" class="w-4 h-4 accent-[#1DB954] bg-[#242424] border-[#333333] rounded cursor-pointer">
+            <label for="dontShowAgainCheck" id="welcomeCheckboxText" class="text-xs text-[#B3B3B3] cursor-pointer hover:text-white transition">不再顯示此溫馨提示</label>
+        </div>
+        
+        <!-- 新增：快速進入「加到主畫面教學」的入口按鈕 -->
+        <button type="button" onclick="openA2hsModalFromWelcome()" class="w-full py-2 mb-2 bg-[#1DB954]/10 text-[#1DB954] hover:bg-[#1DB954]/20 text-xs font-bold rounded-xl border border-[#1DB954]/20 transition flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+            <span id="welcomeA2hsBtnText">👉 教我如何將 Coink 加到主畫面</span>
+        </button>
+
+        <button type="button" onclick="closeWelcomeModal()" id="welcomeConfirmBtn" class="w-full py-3.5 bg-white hover:bg-[#E2E8F0] text-[#121212] text-xs font-extrabold rounded-xl shadow-lg transition mt-2">確認並開始記帳</button>
+    </div>
+</div>
+
+<!-- Footer -->
+    <footer class="mt-auto py-8 text-center text-[11px] font-medium text-[#B3B3B3] border-t border-[#282828]">
+        &copy; 2026 Coink. All rights reserved.
+    </footer>
+
+    <!-- App Logic -->
+    <script>
+        // 【修復核心1】：加入安全的本地儲存函數，避免遇到 Safari 私密模式或 LINE 內部瀏覽器禁用 localStorage 時引發程式崩潰
+        function safeSetLocal(key, value) {
+            try {
+                localStorage.setItem(key, typeof value === 'object' ? JSON.stringify(value) : value);
+            } catch (e) {
+                console.warn('LocalStorage is disabled or full in this browser environment:', e);
+            }
+        }
+
+        function safeGetLocal(key, isJson = false) {
+            try {
+                const item = localStorage.getItem(key);
+                if (item === null) return null;
+                return isJson ? JSON.parse(item) : item;
+            } catch (e) {
+                console.warn('Cannot read from LocalStorage:', e);
+                return null;
+            }
+        }
+
+        const translations = {
+            'zh-TW': {
+                headerSubtitle: 'Coink · 個人智慧記帳與財務管理',
+                navMenu: '功能選單',
+                navAdd: '記帳',
+                periodMonth: '本月',
+                periodQuarter: '本季',
+                periodYear: '今年',
+                periodAll: '全部',
+                range: '區間：',
+                to: '至',
+                reset: '重設',
+                setInitial: '設初始',
+                balanceDesc: '含初始結餘與淨利',
+                totalIncomeTitle: '期間總收入',
+                incomeDesc: '現金流流入',
+                totalExpenseTitle: '期間總支出',
+                expenseDesc: '日常生活開銷',
+                chartPieTitle: '支出分類佔比分析',
+                chartBarTitle: '收支對比長條圖',
+                txListTitle: '收支明細串流',
+                optFilterAll: '全部記錄',
+                optFilterIncome: '僅看收入',
+                optFilterExpense: '僅看支出',
+                thCategory: '類別 / 備註',
+                thDate: '日期',
+                thAmount: '金額',
+                thAction: '操作',
+                emptyTitle: '目前選定的區間尚無記帳資料',
+                emptyDesc: '點擊右上角「記帳」開始記錄您的日常收支吧！',
+                menuTitle: '功能選單',
+                menuSub: '全方位智慧理財與分析工具',
+                menuVoiceAI: 'AI 語音記帳助理',
+                menuReport: '帳務報表與匯出',
+                menuInvoice: '發票記帳',
+                menuWidget: '記帳小工具',
+                menuShared: '共享帳本',
+                menuCategory: '分類管理',
+                menuRecurring: '固定收支',
+                menuGoals: '儲蓄目標',
+                menuBudget: '薪資分配預算',
+                menuSimulate: '每月純儲蓄購買力侵蝕模擬',
+                menuSettings: '功能設定',
+                settingsTitle: '功能設定',
+                nameSetting: '顯示稱呼 (Name)',
+                defaultName: '朋友',
+                langSetting: '顯示語言 (Language)',
+                initialSetting: '初始資產結餘 (不影響收支)',
+                setInitialAmount: '設定金額',
+                currencySetting: '顯示幣別',
+                backupSetting: '資料備份與還原 (防清除紀錄)',
+                initialModalTitle: '設定初始資產結餘',
+                initialModalDesc: '輸入您的初始資產總額（這不會影響收入與支出統計，僅加總在總結餘中）：',
+                initialCancel: '取消',
+                initialSave: '確認儲存',
+                voiceDesc: '常忘記或懶得手動輸入？只要點擊下方麥克風說出消費內容，AI 將自動幫您分門別類並完成記帳！',
+                voiceStatus: '點擊圖示開始說話 / 模擬語音輸入',
+                voiceExamples: '點擊以下範例一秒入帳：',
+                reportHealth: '財務健康診斷：',
+                reportAvg: '平均每日支出',
+                reportMax: '最高單筆支出',
+                reportSaveRate: '儲蓄率',
+                reportCsv: '匯出 CSV',
+                reportPdf: '匯出/列印 PDF',
+                invoiceScan: '點擊模擬掃描電子發票',
+                invoiceSave: '確認快速入帳',
+                widgetTotal: '總金額',
+                widgetPeople: '人數',
+                widgetCalc: '立即計算',
+                sharedBtn: '產生專屬邀請碼',
+                catExpense: '支出',
+                catIncome: '收入',
+                catAdd: '確認新增分類',
+                recAdd: '新增固定項目',
+                goalNew: '設立新儲蓄目標',
+                goalOptMonth: '本月儲蓄目標',
+                goalOptYear: '今年度儲蓄目標',
+                goalOptCustom: '自訂期限目標',
+                goalSave: '儲存目標',
+                budgetSetTitle: '設定每次薪資分配預算',
+                budgetAddBtn: '新增配置',
+                simDesc: '結合 Google Search 即時連線全球最新消費物價指數（CPI）與通膨數據，計算您將純儲蓄存放在銀行中，每個月隨著物價上漲而被悄悄吃掉多少真實購買力！',
+                simRegionLabel: '選擇居住地區 / 國家',
+                simSavingLabel: '每月純儲蓄金額 ($)',
+                simMonthsLabel: '模擬月數 (個月)',
+                simExecBtn: '聯網查詢最新 CPI 與計算每月購買力',
+                simPrincipal: '累積純儲蓄本金：',
+                simReal: '通膨調整後真實購買力：',
+                simLost: '購買力被侵蝕損失：',
+                simMonthlyList: '每個月純儲蓄剩餘購買力明細表：',
+                welcomeTitle: '歡迎使用 Coink',
+                welcomeInfo1: '您的記帳資料僅安全地儲存於您的裝置上，享有 100% 的隱私。',
+                welcomeInfo2: '請務必定期至「設定」中備份資料，以免清除瀏覽紀錄時遺失。',
+                welcomeInfo3: '使用前請把 Coink 加進電話主頁面。',
+                welcomeNamePrompt: '告訴我們該怎麼稱呼您：',
+                welcomeNamePlaceholder: '輸入您的稱呼 (例如：小明)',
+                welcomeCheckbox: '不再顯示此溫馨提示',
+                welcomeConfirm: '確認並開始記帳',
+                // A2HS Translations
+                menuA2hs: '將 Coink 安裝為 App',
+                a2hsTitle: '安裝到手機主畫面',
+                a2hsDesc: '將 Coink 加入主畫面，即可像一般 App 般一鍵獨立開啟，全螢幕無干擾，更能避免清理瀏覽器分頁時不小心遺失紀錄喔！',
+                a2hsIosTitle: '🍎 iOS (iPhone/iPad) 教學：',
+                a2hsIosStep1: '1. 在 Safari 瀏覽器底部，點擊「分享」圖示',
+                a2hsIosStep2: '2. 往下滑動，點選「加入主畫面」',
+                a2hsAndroidTitle: '🤖 Android (安卓) 教學：',
+                a2hsAndroidStep1: '1. 在 Chrome 瀏覽器右上角，點擊「選單 (⋮)」',
+                a2hsAndroidStep2: '2. 點選「加到主畫面」或「安裝應用程式」',
+                welcomeA2hsBtn: '👉 教我如何將 Coink 加到主畫面',
+                // Portfolio Translations
+                menuPortfolio: '投資組合即時追蹤',
+                portTitle: '投資組合與即時股價',
+                portTotalValue: '總投資市值',
+                portTotalReturn: '總未實現損益',
+                portSym: '股票代碼 (例: QBTS)',
+                portShares: '持有股數',
+                portPrice: '平均成本 ($)',
+                portAddBtn: '新增持股紀錄'
+            },
+            'en': {
+                headerSubtitle: 'Coink · Personal Smart Expense & Financial Management',
+                navMenu: 'Menu',
+                navAdd: 'Add',
+                periodMonth: 'Month',
+                periodQuarter: 'Quarter',
+                periodYear: 'Year',
+                periodAll: 'All',
+                range: 'Range:',
+                to: 'to',
+                reset: 'Reset',
+                setInitial: 'Set Initial',
+                balanceDesc: 'Includes initial balance & net profit',
+                totalIncomeTitle: 'Total Income',
+                incomeDesc: 'Cash flow in',
+                totalExpenseTitle: 'Total Expense',
+                expenseDesc: 'Daily living expenses',
+                chartPieTitle: 'Expense Category Breakdown',
+                chartBarTitle: 'Income vs Expense Bar Chart',
+                txListTitle: 'Transaction Stream',
+                optFilterAll: 'All Records',
+                optFilterIncome: 'Income Only',
+                optFilterExpense: 'Expense Only',
+                thCategory: 'Category / Note',
+                thDate: 'Date',
+                thAmount: 'Amount',
+                thAction: 'Action',
+                emptyTitle: 'No transactions found for selected period',
+                emptyDesc: 'Click "Add" in the top right to start recording!',
+                menuTitle: 'Feature Menu',
+                menuSub: 'Comprehensive Smart Financial Tools',
+                menuVoiceAI: 'AI Voice Assistant',
+                menuReport: 'Financial Reports & Export',
+                menuInvoice: 'Invoice Tracking',
+                menuWidget: 'Expense Widget',
+                menuShared: 'Shared Ledger',
+                menuCategory: 'Category Management',
+                menuRecurring: 'Recurring Transactions',
+                menuGoals: 'Savings Goals',
+                menuBudget: 'Salary Allocation Budget',
+                menuSimulate: 'Monthly Savings Purchasing Power Simulation',
+                menuSettings: 'Settings',
+                settingsTitle: 'Settings',
+                nameSetting: 'Your Name',
+                defaultName: 'Friend',
+                langSetting: 'Display Language',
+                initialSetting: 'Initial Asset Balance (Excludes Stats)',
+                setInitialAmount: 'Set Amount',
+                currencySetting: 'Currency',
+                backupSetting: 'Data Backup & Restore',
+                initialModalTitle: 'Set Initial Asset Balance',
+                initialModalDesc: 'Enter your total initial assets (does not affect income/expense stats, added to total balance):',
+                initialCancel: 'Cancel',
+                initialSave: 'Save',
+                voiceDesc: 'Forget to log expenses? Just click the mic below and speak (e.g. "Lunch cost 50"), and AI will categorize and record it instantly!',
+                voiceStatus: 'Click icon to speak / simulate voice input',
+                voiceExamples: 'Click example to log instantly:',
+                reportHealth: 'Financial Health Diagnosis:',
+                reportAvg: 'Avg Daily Expense',
+                reportMax: 'Max Single Expense',
+                reportSaveRate: 'Savings Rate',
+                reportCsv: 'Export CSV',
+                reportPdf: 'Export/Print PDF',
+                invoiceScan: 'Click to simulate scanning receipt',
+                invoiceSave: 'Confirm & Log',
+                widgetTotal: 'Total Amount',
+                widgetPeople: 'People Count',
+                widgetCalc: 'Calculate',
+                sharedBtn: 'Generate Invite Code',
+                catExpense: 'Expense',
+                catIncome: 'Income',
+                catAdd: 'Add Category',
+                recAdd: 'Add Recurring Item',
+                goalNew: 'Create Savings Goal',
+                goalOptMonth: 'Monthly Goal',
+                goalOptYear: 'Yearly Goal',
+                goalOptCustom: 'Custom Goal',
+                goalSave: 'Save Goal',
+                budgetSetTitle: 'Set Salary Allocation Budget',
+                budgetAddBtn: 'Add Allocation',
+                simDesc: 'Connects to live Consumer Price Index (CPI) and inflation data via Google Search to calculate how bank savings lose purchasing power over time.',
+                simRegionLabel: 'Select Region / Country',
+                simSavingLabel: 'Monthly Savings ($)',
+                simMonthsLabel: 'Simulation Months',
+                simExecBtn: 'Fetch CPI & Simulate Purchasing Power',
+                simPrincipal: 'Total Principal Saved:',
+                simReal: 'Inflation-Adjusted Real Purchasing Power:',
+                simLost: 'Purchasing Power Loss:',
+                simMonthlyList: 'Monthly Remaining Purchasing Power Schedule:',
+                welcomeTitle: 'Welcome to Coink',
+                welcomeInfo1: 'Your data is securely stored only on your device, ensuring 100% privacy.',
+                welcomeInfo2: 'Remember to backup data regularly in Settings to prevent loss when clearing browser history.',
+                welcomeInfo3: 'Please add Coink to your phone\'s home screen before using.',
+                welcomeNamePrompt: 'How should we call you?',
+                welcomeNamePlaceholder: 'Enter your name (e.g., Alex)',
+                welcomeCheckbox: 'Do not show this reminder again',
+                welcomeConfirm: 'Confirm & Start',
+                // A2HS Translations
+                menuA2hs: 'Install Coink as App',
+                a2hsTitle: 'Add to Home Screen',
+                a2hsDesc: 'Add Coink to your home screen to use it like a native app! It prevents accidental data loss when closing browser tabs.',
+                a2hsIosTitle: '🍎 iOS (iPhone/iPad):',
+                a2hsIosStep1: '1. Tap the "Share" icon at the bottom of Safari',
+                a2hsIosStep2: '2. Scroll down and tap "Add to Home Screen"',
+                a2hsAndroidTitle: '🤖 Android:',
+                a2hsAndroidStep1: '1. Tap the "Menu (⋮)" icon at the top right in Chrome',
+                a2hsAndroidStep2: '2. Tap "Add to Home screen" or "Install app"',
+                welcomeA2hsBtn: '👉 How to Add to Home Screen',
+                // Portfolio Translations
+                menuPortfolio: 'Live Investment Portfolio',
+                portTitle: 'Portfolio & Live Prices',
+                portTotalValue: 'Total Portfolio Value',
+                portTotalReturn: 'Total Unrealized P/L',
+                portSym: 'Ticker (e.g. QBTS)',
+                portShares: 'Shares',
+                portPrice: 'Avg Cost ($)',
+                portAddBtn: 'Add Holding'
+            },
+            'ja': {
+                headerSubtitle: 'Coink · パーソナルスマート家計簿と財務管理',
+                navMenu: 'メニュー',
+                navAdd: '記録',
+                periodMonth: '今月',
+                periodQuarter: '今四半期',
+                periodYear: '今年',
+                periodAll: 'すべて',
+                range: '期間：',
+                to: '〜',
+                reset: 'リセット',
+                setInitial: '初期残高設定',
+                balanceDesc: '初期残高と純利益を含む',
+                totalIncomeTitle: '期間総収入',
+                incomeDesc: 'キャッシュフロー流入',
+                totalExpenseTitle: '期間総支出',
+                expenseDesc: '日常の生活費',
+                chartPieTitle: '支出カテゴリ別割合',
+                chartBarTitle: '収支比較グラフ',
+                txListTitle: '取引履歴ストリーム',
+                optFilterAll: 'すべての履歴',
+                optFilterIncome: '収入のみ',
+                optFilterExpense: '支出のみ',
+                thCategory: 'カテゴリ / 備考',
+                thDate: '日付',
+                thAmount: '金額',
+                thAction: '操作',
+                emptyTitle: '選択した期間の取引データはありません',
+                emptyDesc: '右上の「記録」をクリックして家計簿を始めましょう！',
+                menuTitle: '機能メニュー',
+                menuSub: '総合スマート資産管理ツール',
+                menuVoiceAI: 'AI音声アシスタント',
+                menuReport: '収支レポートとエクスポート',
+                menuInvoice: '領収書・レシート管理',
+                menuWidget: '割り勘計算ツール',
+                menuShared: '共有台帳',
+                menuCategory: 'カテゴリ管理',
+                menuRecurring: '定期収支',
+                menuGoals: '貯蓄目標',
+                menuBudget: '給与配分予算',
+                menuSimulate: '毎月の貯蓄購買力侵蝕シミュレーション',
+                menuSettings: '設定',
+                settingsTitle: '設定',
+                nameSetting: '表示名 (Name)',
+                defaultName: '友達',
+                langSetting: '表示言語',
+                initialSetting: '初期資産残高 (統計に影響なし)',
+                setInitialAmount: '金額を設定',
+                currencySetting: '通貨',
+                backupSetting: 'データバックアップと復元',
+                initialModalTitle: '初期資産残高を設定',
+                initialModalDesc: '初期資産総額を入力してください（収支統計には影響しません）：',
+                initialCancel: 'キャンセル',
+                initialSave: '保存',
+                voiceDesc: 'マイクをクリックして音声入力すると、AIが自動でカテゴリ分けして記録します！',
+                voiceStatus: 'アイコンをクリックして話す / 音声入力をシミュレート',
+                voiceExamples: 'クリックして一瞬で記録：',
+                reportHealth: '財務健康診断：',
+                reportAvg: '1日平均支出',
+                reportMax: '最高単一支出',
+                reportSaveRate: '貯蓄率',
+                reportCsv: 'CSVエクスポート',
+                reportPdf: 'PDFエクスポート/印刷',
+                invoiceScan: 'クリックしてレシートスキャンをシミュレート',
+                invoiceSave: '確認して記録',
+                widgetTotal: '合計金額',
+                widgetPeople: '人数',
+                widgetCalc: '今すぐ計算',
+                sharedBtn: '専用招待コードを生成',
+                catExpense: '支出',
+                catIncome: '収入',
+                catAdd: 'カテゴリを追加',
+                recAdd: '定期項目を追加',
+                goalNew: '貯蓄目標を作成',
+                goalOptMonth: '今月の目標',
+                goalOptYear: '今年の目標',
+                goalOptCustom: 'カスタム目標',
+                goalSave: '目標を保存',
+                budgetSetTitle: '給与配分予算を設定',
+                budgetAddBtn: '配分を追加',
+                simDesc: 'Google検索による最新の消費者物価指数（CPI）およびインフレ率に基づき、銀行預金の購買力の目減りをシミュレーションします。',
+                simRegionLabel: '地域 / 国を選択',
+                simSavingLabel: '毎月の貯蓄額 ($)',
+                simMonthsLabel: 'シミュレーション月数',
+                simExecBtn: 'CPIを取得して購買力をシミュレート',
+                simPrincipal: '累計貯蓄元本：',
+                simReal: 'インフレ調整後の実質購買力：',
+                simLost: '購買力の目減り損失：',
+                simMonthlyList: '毎月の残余購買力スケジュール：',
+                welcomeTitle: 'Coinkへようこそ',
+                welcomeInfo1: 'データはお使いのデバイスにのみ安全に保存され、100%のプライバシーが確保されます。',
+                welcomeInfo2: 'ブラウザの履歴を消去した際のデータ消失を防ぐため、定期的にバックアップを取ってください。',
+                welcomeInfo3: '使用する前に、Coinkをスマートフォンのホーム画面に追加してください。',
+                welcomeNamePrompt: 'お呼びする名前を教えてください：',
+                welcomeNamePlaceholder: '名前を入力 (例: 太郎)',
+                welcomeCheckbox: '今後このメッセージを表示しない',
+                welcomeConfirm: '確認して開始',
+                // A2HS Translations
+                menuA2hs: 'アプリとしてインストール',
+                a2hsTitle: 'ホーム画面に追加',
+                a2hsDesc: 'Coinkをホーム画面に追加すると、ネイティブアプリのように使えます。ブラウザのタブを閉じた際のデータ消失も防げます！',
+                a2hsIosTitle: '🍎 iOS (iPhone/iPad):',
+                a2hsIosStep1: '1. Safari下部の「共有」アイコンをタップ',
+                a2hsIosStep2: '2. 下にスクロールして「ホーム画面に追加」をタップ',
+                a2hsAndroidTitle: '🤖 Android:',
+                a2hsAndroidStep1: '1. Chrome右上の「メニュー (⋮)」をタップ',
+                a2hsAndroidStep2: '2. 「ホーム画面に追加」または「アプリをインストール」をタップ',
+                welcomeA2hsBtn: '👉 ホーム画面への追加方法',
+                // Portfolio Translations
+                menuPortfolio: '投資ポートフォリオ追跡',
+                portTitle: 'ポートフォリオとリアルタイム株価',
+                portTotalValue: '総投資時価総額',
+                portTotalReturn: '総未実現損益',
+                portSym: 'ティッカー (例: QBTS)',
+                portShares: '保有株数',
+                portPrice: '平均取得単価 ($)',
+                portAddBtn: '保有銘柄を追加'
+            }
+        };
+
+        let currentLang = safeGetLocal('smart_lang_spotify') || 'zh-TW';
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            safeSetLocal('smart_lang_spotify', lang);
+            
+            const langSel = document.getElementById('langSelect');
+            const welcomeLangSel = document.getElementById('welcomeLangSelect');
+            if(langSel) langSel.value = lang;
+            if(welcomeLangSel) welcomeLangSel.value = lang;
+            
+            applyTranslations();
+            showToast(lang === 'zh-TW' ? '已切換為繁體中文' : lang === 'en' ? 'Switched to English' : '日本語に切り替えました');
+        }
+        window.changeLanguage = changeLanguage;
+
+        function applyTranslations() {
+            const t = translations[currentLang] || translations['zh-TW'];
+            const safeSet = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
+            const safeHtml = (id, html) => { const el = document.getElementById(id); if(el) el.innerHTML = html; };
+
+            safeSet('lblHeaderSubtitle', t.headerSubtitle);
+            safeSet('lblNavMenu', t.navMenu);
+            safeSet('lblNavAdd', t.navAdd);
+            safeSet('btnPeriodMonth', t.periodMonth);
+            safeSet('btnPeriodQuarter', t.periodQuarter);
+            safeSet('btnPeriodYear', t.periodYear);
+            safeSet('btnPeriodAll', t.periodAll);
+            safeSet('lblRange', t.range);
+            safeSet('lblTo', t.to);
+            safeSet('btnReset', t.reset);
+            safeHtml('btnSetInitial', `<i class="fa-solid fa-pen mr-1"></i>${t.setInitial}`);
+            safeHtml('lblBalanceDesc', `<i class="fa-solid fa-shield-halved mr-1.5 text-[#1DB954]"></i> ${t.balanceDesc}`);
+            safeSet('lblTotalIncomeTitle', t.totalIncomeTitle);
+            safeHtml('lblIncomeDesc', `<i class="fa-solid fa-arrow-up mr-1.5 text-[#1DB954]"></i> ${t.incomeDesc}`);
+            safeSet('lblTotalExpenseTitle', t.totalExpenseTitle);
+            safeHtml('lblExpenseDesc', `<i class="fa-solid fa-arrow-down mr-1.5 text-rose-500"></i> ${t.expenseDesc}`);
+            safeHtml('lblChartPieTitle', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-3 text-xs border border-[#333333]"><i class="fa-solid fa-chart-pie"></i></div>${t.chartPieTitle}`);
+            safeHtml('lblChartBarTitle', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-3 text-xs border border-[#333333]"><i class="fa-solid fa-chart-column"></i></div>${t.chartBarTitle}`);
+            safeHtml('lblTxListTitle', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-3 text-xs border border-[#333333]"><i class="fa-solid fa-stream"></i></div>${t.txListTitle}`);
+            safeSet('optFilterAll', t.optFilterAll);
+            safeSet('optFilterIncome', t.optFilterIncome);
+            safeSet('optFilterExpense', t.optFilterExpense);
+            safeSet('thCategory', t.thCategory);
+            safeSet('thDate', t.thDate);
+            safeSet('thAmount', t.thAmount);
+            safeSet('thAction', t.thAction);
+            safeSet('lblEmptyTitle', t.emptyTitle);
+            safeSet('lblEmptyDesc', t.emptyDesc);
+            safeSet('lblMenuTitle', t.menuTitle);
+            safeSet('lblMenuSub', t.menuSub);
+            safeSet('menuVoiceAI', t.menuVoiceAI);
+            safeSet('menuReport', t.menuReport);
+            safeSet('menuInvoice', t.menuInvoice);
+            safeSet('menuWidget', t.menuWidget);
+            safeSet('menuShared', t.menuShared);
+            safeSet('menuCategory', t.menuCategory);
+            safeSet('menuRecurring', t.menuRecurring);
+            safeSet('menuGoals', t.menuGoals);
+            safeSet('menuBudget', t.menuBudget);
+            safeSet('menuSimulate', t.menuSimulate);
+            safeSet('menuSettings', t.menuSettings);
+
+            safeHtml('lblSettingsTitle', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-gear"></i></div>` + t.settingsTitle);
+            safeSet('lblNameSetting', t.nameSetting);
+            safeSet('lblLangSetting', t.langSetting);
+            safeSet('lblInitialSetting', t.initialSetting);
+            safeSet('btnSetInitialAmount', t.setInitialAmount);
+            safeSet('lblCurrencySetting', t.currencySetting);
+            safeSet('lblBackupSetting', t.backupSetting);
+
+            safeSet('voiceModalTitle', t.menuVoiceAI);
+            safeSet('voiceDesc', t.voiceDesc);
+            safeSet('voiceStatusText', t.voiceStatus);
+            safeSet('voiceExamplesTitle', t.voiceExamples);
+
+            safeSet('reportModalTitle', t.menuReport);
+            safeSet('reportHealthTitle', t.reportHealth);
+            safeSet('reportAvgDailyLabel', t.reportAvg);
+            safeSet('reportMaxExpLabel', t.reportMax);
+            safeSet('reportSavingsRateLabel', t.reportSaveRate);
+            safeHtml('reportCsvBtn', `<i class="fa-solid fa-file-csv mr-1.5 text-emerald-400"></i>${t.reportCsv}`);
+            safeHtml('reportPdfBtn', `<i class="fa-solid fa-file-pdf mr-1.5 text-rose-400"></i>${t.reportPdf}`);
+
+            safeSet('invoiceModalTitle', t.menuInvoice);
+            safeSet('invoiceScanText', t.invoiceScan);
+            safeSet('invoiceSaveBtn', t.invoiceSave);
+
+            safeSet('widgetModalTitle', t.menuWidget);
+            safeSet('widgetCalcBtn', t.widgetCalc);
+            const sTotal = document.getElementById('splitTotal');
+            const sPeople = document.getElementById('splitPeople');
+            if(sTotal) sTotal.placeholder = t.widgetTotal;
+            if(sPeople) sPeople.placeholder = t.widgetPeople;
+
+            safeSet('sharedModalTitle', t.menuShared);
+            safeSet('sharedBtnText', t.sharedBtn);
+
+            safeSet('categoryModalTitle', t.menuCategory);
+            safeSet('catOptExpense', t.catExpense);
+            safeSet('catOptIncome', t.catIncome);
+            safeSet('catAddBtnText', t.catAdd);
+            const nCatName = document.getElementById('newCatName');
+            if(nCatName) nCatName.placeholder = currentLang === 'en' ? 'Category Name' : currentLang === 'ja' ? 'カテゴリ名' : '分類名稱';
+
+            safeSet('recurringModalTitle', t.menuRecurring);
+            safeSet('recurringBtnText', t.recAdd);
+
+            safeHtml('goalsModalTitle', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-bullseye"></i></div>` + t.menuGoals);
+            safeSet('goalsNewTitle', t.goalNew);
+            safeSet('goalOptMonth', t.goalOptMonth);
+            safeSet('goalOptYear', t.goalOptYear);
+            safeSet('goalOptCustom', t.goalOptCustom);
+            safeSet('goalSaveBtnText', t.goalSave);
+            const gTitle = document.getElementById('goalTitle');
+            const gAmt = document.getElementById('goalAmount');
+            if(gTitle) gTitle.placeholder = currentLang === 'en' ? 'Goal Name (e.g. Travel)' : currentLang === 'ja' ? '目標名 (例: 旅行)' : '目標名稱 (例如：買房基金、日本旅遊)';
+            if(gAmt) gAmt.placeholder = currentLang === 'en' ? 'Target Amount ($)' : currentLang === 'ja' ? '目標金額 ($)' : '目標金額 ($)';
+
+            safeHtml('budgetModalTitle', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-pie-chart"></i></div>` + t.menuBudget);
+            safeSet('budgetSettingTitle', t.budgetSetTitle);
+            safeSet('budgetAddBtnText', t.budgetAddBtn);
+            const bSal = document.getElementById('budgetSalaryInput');
+            const bLim = document.getElementById('budgetLimitAmount');
+            if(bSal) bSal.placeholder = currentLang === 'en' ? 'Monthly Salary / Income ($)' : currentLang === 'ja' ? '月給 / 収入 ($)' : '每月總薪資 / 收入 ($)';
+            if(bLim) bLim.placeholder = currentLang === 'en' ? 'Budget Limit ($)' : currentLang === 'ja' ? '予算上限 ($)' : '分配預算上限 ($)';
+
+            safeHtml('simulateModalTitle', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-earth-americas"></i></div>` + t.menuSimulate);
+            safeSet('simDescText', t.simDesc);
+            safeSet('simRegionLabel', t.simRegionLabel);
+            safeSet('simSavingLabel', t.simSavingLabel);
+            safeSet('simMonthsLabel', t.simMonthsLabel);
+            safeHtml('simExecBtn', `<i class="fa-solid fa-satellite-dish"></i><span>${t.simExecBtn}</span>`);
+            safeSet('simPrincipalLabel', t.simPrincipal);
+            safeSet('simRealLabel', t.simReal);
+            safeSet('simLostLabel', t.simLost);
+            safeSet('simMonthlyList', t.simMonthlyList);
+
+            safeHtml('initialModalTitleText', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-vault"></i></div>` + t.initialModalTitle);
+            safeSet('initialModalDesc', t.initialModalDesc);
+            safeSet('initialCancelBtn', t.initialCancel);
+            safeSet('initialSaveBtn', t.initialSave);
+
+            safeSet('welcomeTitleText', t.welcomeTitle);
+            safeHtml('welcomeInfo1Text', `<i class="fa-solid fa-shield-halved mr-1.5 text-emerald-400"></i>${t.welcomeInfo1}`);
+            safeHtml('welcomeInfo2Text', `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i>${t.welcomeInfo2}`);
+            safeHtml('welcomeInfo3Text', `<i class="fa-solid fa-mobile-screen-button mr-1.5"></i>${t.welcomeInfo3}`);
+            safeSet('welcomeNamePromptText', t.welcomeNamePrompt);
+            safeSet('welcomeCheckboxText', t.welcomeCheckbox);
+            safeSet('welcomeConfirmBtn', t.welcomeConfirm);
+
+            // A2HS Translation Updates
+            safeSet('menuA2hs', t.menuA2hs);
+            safeHtml('a2hsTitleText', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-mobile-screen-button"></i></div>` + t.a2hsTitle);
+            safeSet('a2hsDescText', t.a2hsDesc);
+            safeSet('a2hsIosTitleText', t.a2hsIosTitle);
+            safeHtml('a2hsIosStep1Text', `<i class="fa-solid fa-arrow-up-from-bracket mr-2 text-white"></i> ${t.a2hsIosStep1}`);
+            safeHtml('a2hsIosStep2Text', `<i class="fa-solid fa-square-plus mr-2 text-white"></i> ${t.a2hsIosStep2}`);
+            safeSet('a2hsAndroidTitleText', t.a2hsAndroidTitle);
+            safeHtml('a2hsAndroidStep1Text', `<i class="fa-solid fa-ellipsis-vertical mr-2 text-white"></i> ${t.a2hsAndroidStep1}`);
+            safeHtml('a2hsAndroidStep2Text', `<i class="fa-solid fa-download mr-2 text-white"></i> ${t.a2hsAndroidStep2}`);
+            safeHtml('welcomeA2hsBtnText', t.welcomeA2hsBtn);
+            
+            // Portfolio Translations Updates
+            safeSet('menuPortfolio', t.menuPortfolio);
+            safeHtml('portfolioModalTitle', `<div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-chart-line"></i></div>` + t.portTitle);
+            safeSet('portTotalValueLabel', t.portTotalValue);
+            safeSet('portTotalReturnLabel', t.portTotalReturn);
+            safeSet('portAddBtnText', t.portAddBtn);
+            const pSym = document.getElementById('portSymbol');
+            const pShares = document.getElementById('portShares');
+            const pPrice = document.getElementById('portAvgPrice');
+            if(pSym) pSym.placeholder = t.portSym;
+            if(pShares) pShares.placeholder = t.portShares;
+            if(pPrice) pPrice.placeholder = t.portPrice;
+            
+            const wNameInput = document.getElementById('welcomeNameInput');
+            if(wNameInput) wNameInput.placeholder = t.welcomeNamePlaceholder;
+
+            const uNameInput = document.getElementById('userNameInput');
+            if(uNameInput) uNameInput.placeholder = currentLang === 'en' ? 'Your Name' : currentLang === 'ja' ? 'お名前' : '輸入稱呼';
+            updateDashboardGreeting();
+        }
+
+        let categories = safeGetLocal('smart_categories_spotify', true) || {
+            expense: [
+                { name: '餐飲食品', icon: 'fa-utensils', color: '#333333' },
+                { name: '交通出行', icon: 'fa-car', color: '#333333' },
+                { name: '購物消費', icon: 'fa-bag-shopping', color: '#333333' },
+                { name: '居住租金', icon: 'fa-house', color: '#333333' },
+                { name: '娛樂休閒', icon: 'fa-gamepad', color: '#333333' },
+                { name: '醫療保健', icon: 'fa-kit-medical', color: '#333333' },
+                { name: '其他支出', icon: 'fa-receipt', color: '#333333' }
+            ],
+            income: [
+                { name: '薪資收入', icon: 'fa-briefcase', color: '#333333' },
+                { name: '投資理財', icon: 'fa-chart-line', color: '#333333' },
+                { name: '兼職外快', icon: 'fa-laptop-code', color: '#333333' },
+                { name: '其他收入', icon: 'fa-sack-dollar', color: '#333333' }
+            ]
+        };
+
+        let transactions = safeGetLocal('smart_transactions_spotify', true) || [];
+        let initialBalance = parseFloat(safeGetLocal('smart_initial_balance_spotify')) || 0;
+        let savingsGoals = safeGetLocal('smart_savings_goals_spotify', true) || [];
+        let salaryBudgets = safeGetLocal('smart_salary_budgets_spotify', true) || [];
+        let portfolioHoldings = safeGetLocal('smart_portfolio_spotify', true) || [];
+        let expenseChartInstance = null;
+        let barChartInstance = null;
+
+        let currentPeriodMode = 'month'; 
+        let customStartDate = '';
+        let customEndDate = '';
+
+        const currencySymbols = { 'HKD': 'HK$', 'TWD': 'NT$', 'CNY': '¥', 'GBP': '£', 'EUR': '€', 'USD': '$', 'JPY': '¥', 'KRW': '₩' };
+        let currentCurrency = safeGetLocal('smart_currency_spotify') || 'HKD';
+        let currentUserName = safeGetLocal('smart_user_name_spotify') || '';
+        let exchangeRates = { 'HKD': 1 };
+
+        function changeUserName(name) {
+            currentUserName = name.trim();
+            safeSetLocal('smart_user_name_spotify', currentUserName);
+            updateDashboardGreeting();
+            showToast((translations[currentLang] ? translations[currentLang].nameSetting.split(' ')[0] : '稱呼') + ' 已更新！');
+        }
+        window.changeUserName = changeUserName;
+
+        async function fetchExchangeRates() {
+            try {
+                const res = await fetch('https://open.er-api.com/v6/latest/HKD');
+                const data = await res.json();
+                if(data && data.rates) {
+                    exchangeRates = data.rates;
+                    renderAll();
+                    if(document.getElementById('goalsListContainer')) renderGoalsList();
+                    if(document.getElementById('budgetListContainer')) renderBudgetList();
+                    if(document.getElementById('portfolioListContainer')) renderPortfolioList();
+                }
+            } catch(e) {}
+        }
+
+        function changeCurrency(currency) {
+            currentCurrency = currency;
+            safeSetLocal('smart_currency_spotify', currency);
+            renderAll();
+            if(document.getElementById('goalsListContainer')) renderGoalsList();
+            if(document.getElementById('budgetListContainer')) renderBudgetList();
+            if(document.getElementById('portfolioListContainer')) renderPortfolioList();
+            showToast(`幣別已切換為 ${currency}`);
+        }
+        window.changeCurrency = changeCurrency;
+
+        function formatCurrency(amount, skipConversion = false) {
+            let rate = skipConversion ? 1 : (exchangeRates[currentCurrency] || 1);
+            let converted = amount * rate;
+            let symbol = currencySymbols[currentCurrency] || 'HK$';
+            let decimals = ['JPY', 'KRW', 'TWD'].includes(currentCurrency) ? 0 : 2;
+            let sign = converted < 0 ? '-' : '';
+            converted = Math.abs(converted);
+            let formatted = converted.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+            return `${sign}${symbol}${formatted}`;
+        }
+
+        // JSON 備份與還原功能 (解決瀏覽器清除資料問題)
+        function exportJSONBackup() {
+            const backupData = {
+                transactions: transactions,
+                initialBalance: initialBalance,
+                savingsGoals: savingsGoals,
+                salaryBudgets: salaryBudgets,
+                categories: categories,
+                portfolioHoldings: portfolioHoldings
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `coink_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+            showToast('資料備份檔已成功下載！');
+        }
+        window.exportJSONBackup = exportJSONBackup;
+
+        function importJSONBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.transactions) {
+                        transactions = parsed.transactions;
+                        safeSetLocal('smart_transactions_spotify', transactions);
+                    }
+                    if (parsed.initialBalance !== undefined) {
+                        initialBalance = parsed.initialBalance;
+                        safeSetLocal('smart_initial_balance_spotify', initialBalance);
+                    }
+                    if (parsed.savingsGoals) {
+                        savingsGoals = parsed.savingsGoals;
+                        safeSetLocal('smart_savings_goals_spotify', savingsGoals);
+                    }
+                    if (parsed.salaryBudgets) {
+                        salaryBudgets = parsed.salaryBudgets;
+                        safeSetLocal('smart_salary_budgets_spotify', salaryBudgets);
+                    }
+                    if (parsed.categories) {
+                        categories = parsed.categories;
+                        safeSetLocal('smart_categories_spotify', categories);
+                    }
+                    if (parsed.portfolioHoldings) {
+                        portfolioHoldings = parsed.portfolioHoldings;
+                        safeSetLocal('smart_portfolio_spotify', portfolioHoldings);
+                    }
+                    renderAll();
+                    showToast('資料已成功還原！');
+                } catch (err) {
+                    showToast('還原失敗：檔案格式錯誤', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+        window.importJSONBackup = importJSONBackup;
+
+    window.updateDashboardGreeting = function() {
+        const greetingEl = document.getElementById('mainDashboardGreeting');
+        const display = currentUserName || (translations[currentLang] ? translations[currentLang].defaultName : '朋友');
+        if (greetingEl) greetingEl.textContent = `Hi ${display}`;
+    };
+
+    window.onload = function() {
+        const txDate = document.getElementById('txDate');
+        if(txDate) txDate.valueAsDate = new Date();
+
+        const langSel = document.getElementById('langSelect');
+        const welcomeLangSel = document.getElementById('welcomeLangSelect');
+        const currSel = document.getElementById('currencySelect');
+        const uNameInput = document.getElementById('userNameInput');
+
+        if(langSel) langSel.value = currentLang;
+        if(welcomeLangSel) welcomeLangSel.value = currentLang;
+        if(currSel) currSel.value = currentCurrency;
+        if(uNameInput) uNameInput.value = currentUserName;
+
+        applyTranslations();
+        setPeriod('month');
+        updateCategoriesSelect();
+        fetchExchangeRates();
+        
+        window.splashStartTime = Date.now();
+        
+        // 單一化開場動畫隱藏邏輯，保證順利進入主頁
+        window.hideSplashScreen = function(forceImmediate = false) {
+            const elapsed = Date.now() - window.splashStartTime;
+            const delay = forceImmediate ? 0 : Math.max(0, 1500 - elapsed);
+            
+            setTimeout(() => {
+                const splash = document.getElementById('splashScreen');
+                if (splash) {
+                    splash.style.transition = 'opacity 0.6s ease';
+                    splash.style.opacity = '0';
+                    setTimeout(() => {
+                        splash.style.display = 'none';
+                        if(typeof replayLogoSpin === 'function') replayLogoSpin();
+                        try {
+                            if (safeGetLocal('smart_hide_welcome_spotify') !== 'true') {
+                                showWelcomeModal();
+                            }
+                        } catch (e) {
+                            showWelcomeModal();
+                        }
+                    }, 600);
+                }
+            }, delay);
+        };
+
+        setTimeout(() => { if(window.hideSplashScreen) window.hideSplashScreen(); }, 500);
+    };
+
+    function replayLogoSpin() {
+        const arrows = document.getElementById('logoArrowsGroup');
+        if (!arrows) return;
+        arrows.classList.remove('animate-spin-once');
+        void arrows.offsetWidth;
+        arrows.classList.add('animate-spin-once');
+    }
+
+    function openInitialBalancePrompt() {
+        closeSubModal('settingsModal');
+        const currentDisp = initialBalance * (exchangeRates[currentCurrency] || 1);
+        const valInput = document.getElementById('initialBalanceInputVal');
+        const symSpan = document.getElementById('initialModalCurrencySymbol');
+        const modal = document.getElementById('initialBalanceModal');
+
+        if(valInput) valInput.value = currentDisp ? currentDisp.toFixed(2) : '';
+        if(symSpan) symSpan.textContent = currencySymbols[currentCurrency] || 'HK$';
+        if(modal) modal.classList.remove('hidden');
+        setTimeout(() => { if(valInput) valInput.focus(); }, 100);
+    }
+    window.openInitialBalancePrompt = openInitialBalancePrompt;
+
+    function showWelcomeModal() {
+        const modal = document.getElementById('welcomeReminderModal');
+        const content = document.getElementById('welcomeModalContent');
+        const nameInput = document.getElementById('welcomeNameInput');
+        if (modal && content) {
+            modal.style.display = 'flex'; // 強制覆蓋顯示屬性
+            modal.classList.remove('hidden');
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+            if (nameInput) {
+                nameInput.value = currentUserName;
+                setTimeout(() => nameInput.focus(), 300);
+            }
+        }
+    }
+    window.showWelcomeModal = showWelcomeModal;
+
+    // 【終極修復】：將彈窗與遮罩連根拔起，確保沒有任何透明圖層阻擋畫面！
+    window.closeWelcomeModal = function() {
+        try {
+            const nameInput = document.getElementById('welcomeNameInput');
+            const dontShowCheck = document.getElementById('dontShowAgainCheck');
+
+            if (nameInput && nameInput.value.trim() !== '') {
+                changeUserName(nameInput.value);
+                const settingsNameInput = document.getElementById('userNameInput');
+                if(settingsNameInput) settingsNameInput.value = currentUserName;
+            }
+
+            if (dontShowCheck && dontShowCheck.checked) {
+                safeSetLocal('smart_hide_welcome_spotify', 'true');
+            }
+
+            // 【終極解決方案】：直接將整個彈窗從 DOM 樹狀結構中「連根拔起 (移除)」
+            // 這樣 100% 絕對不會有任何透明的圖層殘留在畫面上阻擋您的點擊。
+            const modal = document.getElementById('welcomeReminderModal');
+            if (modal) {
+                modal.remove(); // 砍掉整個節點
+            }
+            
+            const splash = document.getElementById('splashScreen');
+            if (splash) {
+                splash.remove(); // 連開場動畫一起砍掉
+            }
+
+        } catch (error) {
+            console.error("關閉歡迎視窗時發生例外:", error);
+            // 發生例外時的最終防線
+            const modal = document.getElementById('welcomeReminderModal');
+            if(modal) modal.remove();
+        }
+    }
+    
+    // 打開加到主畫面教學 (從歡迎彈窗點擊)
+        function openA2hsModalFromWelcome() {
+            closeWelcomeModal();
+            setTimeout(() => {
+                openA2hsModal();
+            }, 300);
+        }
+        window.openA2hsModalFromWelcome = openA2hsModalFromWelcome;
+
+        function saveInitialBalanceFromModal() {
+            const valInput = document.getElementById('initialBalanceInputVal');
+            const val = parseFloat(valInput ? valInput.value : 0);
+            if (isNaN(val)) { showToast('請輸入有效的數字金額', 'error'); return; }
+            initialBalance = val / (exchangeRates[currentCurrency] || 1);
+            safeSetLocal('smart_initial_balance_spotify', initialBalance);
+            renderAll();
+            closeSubModal('initialBalanceModal');
+            showToast(`已成功設定初始結餘：${formatCurrency(initialBalance)}`);
+        }
+        window.saveInitialBalanceFromModal = saveInitialBalanceFromModal;
+
+        window.showToast = showToast;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+            if(!toast || !toastMessage || !toastIcon) return;
+
+            toastMessage.textContent = message;
+            toastIcon.className = type === 'success' ? 'fa-solid fa-circle-check text-white text-base' : 'fa-solid fa-circle-exclamation text-rose-400 text-base';
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => { toast.classList.add('translate-y-24', 'opacity-0'); }, 3000);
+        }
+
+        function setPeriod(mode) {
+            currentPeriodMode = mode;
+            customStartDate = '';
+            customEndDate = '';
+            const sd = document.getElementById('startDate');
+            const ed = document.getElementById('endDate');
+            if(sd) sd.value = '';
+            if(ed) ed.value = '';
+
+            ['month', 'quarter', 'year', 'all'].forEach(m => {
+                const btn = document.getElementById(`btnPeriod${m.charAt(0).toUpperCase() + m.slice(1)}`);
+                if(btn) btn.className = m === mode ? "px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 spotify-btn-active whitespace-nowrap" : "px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 spotify-btn-gray whitespace-nowrap";
+            });
+            renderAll();
+        }
+        window.setPeriod = setPeriod;
+
+        function setCustomPeriod() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            if (start && end) {
+                if (start > end) { showToast('起始日期不可大於結束日期', 'error'); return; }
+                currentPeriodMode = 'custom';
+                customStartDate = start;
+                customEndDate = end;
+                ['month', 'quarter', 'year', 'all'].forEach(m => {
+                    const btn = document.getElementById(`btnPeriod${m.charAt(0).toUpperCase() + m.slice(1)}`);
+                    if(btn) btn.className = "px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 spotify-btn-gray whitespace-nowrap";
+                });
+                renderAll();
+            }
+        }
+        window.setCustomPeriod = setCustomPeriod;
+
+        function resetPeriodFilter() { setPeriod('month'); }
+        window.resetPeriodFilter = resetPeriodFilter;
+
+        function getFilteredTransactions() {
+            const now = new Date();
+            return transactions.filter(t => {
+                if (!t.date) return false;
+                const tDate = new Date(t.date);
+                if (currentPeriodMode === 'all') return true;
+                if (currentPeriodMode === 'month') return tDate.getFullYear() === now.getFullYear() && tDate.getMonth() === now.getMonth();
+                if (currentPeriodMode === 'quarter') return tDate.getFullYear() === now.getFullYear() && Math.floor(tDate.getMonth() / 3) === Math.floor(now.getMonth() / 3);
+                if (currentPeriodMode === 'year') return tDate.getFullYear() === now.getFullYear();
+                if (currentPeriodMode === 'custom') return t.date >= customStartDate && t.date <= customEndDate;
+                return true;
+            });
+        }
+
+        function openFeatureMenu() { const m = document.getElementById('featureMenuModal'); if(m) m.classList.remove('hidden'); }
+        window.openFeatureMenu = openFeatureMenu;
+        function closeFeatureMenu() { const m = document.getElementById('featureMenuModal'); if(m) m.classList.add('hidden'); }
+        window.closeFeatureMenu = closeFeatureMenu;
+        
+        // 新增：打開安裝為 App (A2HS) 的教學視窗
+        function openA2hsModal() { 
+            closeFeatureMenu(); 
+            const m = document.getElementById('a2hsModal'); 
+            if(m) m.classList.remove('hidden'); 
+        }
+        window.openA2hsModal = openA2hsModal;
+        
+        function openPortfolioModal() { closeFeatureMenu(); renderPortfolioList(); const m = document.getElementById('portfolioModal'); if(m) m.classList.remove('hidden'); }
+        window.openPortfolioModal = openPortfolioModal;
+        function openVoiceAssistantModal() { closeFeatureMenu(); const m = document.getElementById('voiceAssistantModal'); if(m) m.classList.remove('hidden'); }
+        window.openVoiceAssistantModal = openVoiceAssistantModal;
+        function openReportModal() { closeFeatureMenu(); calculateReportData(); const m = document.getElementById('reportModal'); if(m) m.classList.remove('hidden'); }
+        window.openReportModal = openReportModal;
+        function openInvoiceModal() { closeFeatureMenu(); const m = document.getElementById('invoiceModal'); if(m) m.classList.remove('hidden'); }
+        window.openInvoiceModal = openInvoiceModal;
+        function openWidgetModal() { closeFeatureMenu(); const m = document.getElementById('widgetModal'); if(m) m.classList.remove('hidden'); }
+        window.openWidgetModal = openWidgetModal;
+        function openSharedModal() { closeFeatureMenu(); const m = document.getElementById('sharedModal'); if(m) m.classList.remove('hidden'); }
+        window.openSharedModal = openSharedModal;
+        function openCategoryModal() { closeFeatureMenu(); renderCategoryManagerList(); const m = document.getElementById('categoryModal'); if(m) m.classList.remove('hidden'); }
+        window.openCategoryModal = openCategoryModal;
+        function openRecurringModal() { closeFeatureMenu(); const m = document.getElementById('recurringModal'); if(m) m.classList.remove('hidden'); }
+        window.openRecurringModal = openRecurringModal;
+        function openGoalsModal() { closeFeatureMenu(); renderGoalsList(); const m = document.getElementById('goalsModal'); if(m) m.classList.remove('hidden'); }
+        window.openGoalsModal = openGoalsModal;
+        function openBudgetModal() { closeFeatureMenu(); renderBudgetCategorySelect(); renderBudgetList(); const m = document.getElementById('budgetModal'); if(m) m.classList.remove('hidden'); }
+        window.openBudgetModal = openBudgetModal;
+        function openSimulateModal() { closeFeatureMenu(); const m = document.getElementById('simulateModal'); if(m) m.classList.remove('hidden'); }
+        window.openSimulateModal = openSimulateModal;
+        function openSettingsModal() { closeFeatureMenu(); const m = document.getElementById('settingsModal'); if(m) m.classList.remove('hidden'); }
+        window.openSettingsModal = openSettingsModal;
+        function closeSubModal(modalId) { const m = document.getElementById(modalId); if(m) m.classList.add('hidden'); }
+        window.closeSubModal = closeSubModal;
+
+        function backToFeatureMenu(modalId) {
+            closeSubModal(modalId);
+            openFeatureMenu();
+        }
+        window.backToFeatureMenu = backToFeatureMenu;
+
+        function openModal() {
+            const m = document.getElementById('transactionModal');
+            const d = document.getElementById('txDate');
+            const a = document.getElementById('txAmount');
+            const n = document.getElementById('txNote');
+            if(m) m.classList.remove('hidden');
+            if(d) d.valueAsDate = new Date();
+            if(a) a.value = '';
+            if(n) n.value = '';
+        }
+        window.openModal = openModal;
+        function closeModal() { const m = document.getElementById('transactionModal'); if(m) m.classList.add('hidden'); }
+        window.closeModal = closeModal;
+
+        function setType(type) {
+            const txType = document.getElementById('txType');
+            if(txType) txType.value = type;
+            const expBtn = document.getElementById('typeExpenseBtn');
+            const incBtn = document.getElementById('typeIncomeBtn');
+            if (type === 'expense') {
+                if(expBtn) expBtn.className = "py-2.5 rounded-lg text-xs font-bold transition-all bg-white text-[#121212] shadow-sm";
+                if(incBtn) incBtn.className = "py-2.5 rounded-lg text-xs font-bold transition-all text-[#B3B3B3] hover:text-white";
+            } else {
+                if(incBtn) incBtn.className = "py-2.5 rounded-lg text-xs font-bold transition-all bg-white text-[#121212] shadow-sm";
+                if(expBtn) expBtn.className = "py-2.5 rounded-lg text-xs font-bold transition-all text-[#B3B3B3] hover:text-white";
+            }
+            updateCategoriesSelect();
+        }
+        window.setType = setType;
+
+        function updateCategoriesSelect() {
+            const txType = document.getElementById('txType');
+            const select = document.getElementById('txCategory');
+            if(!txType || !select) return;
+            const type = txType.value;
+            select.innerHTML = '';
+            if(categories[type]) {
+                categories[type].forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.name;
+                    opt.textContent = cat.name;
+                    select.appendChild(opt);
+                });
+            }
+        }
+
+        function renderBudgetCategorySelect() {
+            const select = document.getElementById('budgetCategorySelect');
+            if(!select) return;
+            select.innerHTML = '';
+            if(categories.expense) {
+                categories.expense.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.name;
+                    opt.textContent = cat.name;
+                    select.appendChild(opt);
+                });
+            }
+        }
+
+        function addTransaction(e) {
+            e.preventDefault();
+            const txType = document.getElementById('txType');
+            const txAmount = document.getElementById('txAmount');
+            const txCategory = document.getElementById('txCategory');
+            const txDate = document.getElementById('txDate');
+            const txNote = document.getElementById('txNote');
+
+            const type = txType ? txType.value : 'expense';
+            const displayAmount = parseFloat(txAmount ? txAmount.value : 0);
+            const category = txCategory ? txCategory.value : '';
+            const date = txDate ? txDate.value : '';
+            const note = txNote ? txNote.value.trim() : '';
+
+            if (!displayAmount || displayAmount <= 0) { showToast('請輸入有效的金額', 'error'); return; }
+            const amount = displayAmount / (exchangeRates[currentCurrency] || 1);
+            const newTx = { id: Date.now().toString(), type, amount, category, date, note };
+            transactions.unshift(newTx);
+            
+            saveAndRefresh();
+            closeModal();
+            showToast('記帳資料儲存成功！');
+        }
+        window.addTransaction = addTransaction;
+
+        function deleteTransaction(id) {
+            transactions = transactions.filter(t => t.id !== id);
+            
+            saveAndRefresh();
+            showToast('已刪除該筆記帳記錄');
+        }
+        window.deleteTransaction = deleteTransaction;
+
+        function clearAllData() {
+            if (confirm('確定要清除所有記帳資料嗎？此動作無法復原。')) {
+                transactions = [];
+                saveAndRefresh();
+                showToast('已清空所有資料');
+            }
+        }
+        window.clearAllData = clearAllData;
+
+        function saveAndRefresh() {
+            safeSetLocal('smart_transactions_spotify', transactions);
+            renderAll();
+        }
+
+        function renderAll() {
+            renderSummary();
+            renderTransactions();
+            renderCharts();
+        }
+
+        function renderSummary() {
+            const filteredTxs = getFilteredTransactions();
+            let totalIncome = 0, totalExpense = 0;
+            filteredTxs.forEach(t => {
+                if (t.type === 'income') totalIncome += t.amount;
+                else totalExpense += t.amount;
+            });
+            const balance = initialBalance + (totalIncome - totalExpense);
+
+            let periodLabelText = translations[currentLang].periodMonth;
+            if (currentPeriodMode === 'month') periodLabelText = translations[currentLang].periodMonth;
+            else if (currentPeriodMode === 'quarter') periodLabelText = translations[currentLang].periodQuarter;
+            else if (currentPeriodMode === 'year') periodLabelText = translations[currentLang].periodYear;
+            else if (currentPeriodMode === 'all') periodLabelText = '總資產結餘';
+            else if (currentPeriodMode === 'custom') periodLabelText = `${customStartDate} ~ ${customEndDate}`;
+
+            const periodTitle = document.getElementById('periodTitle');
+            const totalBalance = document.getElementById('totalBalance');
+            const totalIncEl = document.getElementById('totalIncome');
+            const totalExpEl = document.getElementById('totalExpense');
+
+            if(periodTitle) periodTitle.textContent = periodLabelText;
+            if(totalBalance) {
+                totalBalance.textContent = formatCurrency(balance);
+                totalBalance.className = `text-3xl font-extrabold tracking-tight ${balance > 0 ? 'text-[#1DB954]' : balance < 0 ? 'text-rose-500' : 'text-white'}`;
+            }
+            if(totalIncEl) totalIncEl.textContent = '+' + formatCurrency(totalIncome).replace('-', '');
+            if(totalExpEl) totalExpEl.textContent = '-' + formatCurrency(totalExpense).replace('-', '');
+        }
+
+        function renderTransactions() {
+            const filterEl = document.getElementById('filterType');
+            const listEl = document.getElementById('transactionList');
+            const emptyEl = document.getElementById('emptyState');
+            if(!listEl || !emptyEl) return;
+
+            const filter = filterEl ? filterEl.value : 'all';
+            listEl.innerHTML = '';
+            const filteredByPeriod = getFilteredTransactions();
+            const filtered = filteredByPeriod.filter(t => filter === 'all' || t.type === filter);
+
+            if (filtered.length === 0) { emptyEl.classList.remove('hidden'); return; }
+            else { emptyEl.classList.add('hidden'); }
+
+            filtered.forEach(t => {
+                const catGroup = [...(categories.expense || []), ...(categories.income || [])];
+                const catObj = catGroup.find(c => c.name === t.category) || { icon: 'fa-circle', color: '#333333' };
+                const isIncome = t.type === 'income';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-[#202020] transition";
+                tr.innerHTML = `
+                    <td class="py-3 px-6"><div class="flex items-center space-x-3"><div class="w-10 h-10 rounded-xl flex items-center justify-center ${isIncome ? 'text-[#1DB954] border-[#1DB954]/30 bg-[#1DB954]/10' : 'text-rose-400 border-rose-500/30 bg-rose-500/10'} text-xs shadow-sm border"><i class="fa-solid ${catObj.icon}"></i></div><div><p class="font-bold text-white text-xs flex items-center gap-1.5">${t.category}<i class="fa-solid ${isIncome ? 'fa-caret-up text-[#1DB954]' : 'fa-caret-down text-rose-500'} text-[11px]"></i></p><p class="text-[11px] text-[#B3B3B3] font-medium">${t.note || '無備註'}</p></div></div></td>
+                    <td class="py-3 px-6 text-[#B3B3B3] font-medium text-xs">${t.date}</td>
+                    <td class="py-3 px-6 font-extrabold text-xs ${isIncome ? 'text-[#1DB954]' : 'text-rose-500'}"><i class="fa-solid ${isIncome ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'} mr-1 text-[10px]"></i>${isIncome ? '+' : '-'}${formatCurrency(t.amount).replace('-', '')}</td>
+                    <td class="py-3 px-6 text-right"><button onclick="deleteTransaction('${t.id}')" class="text-[#B3B3B3] hover:text-rose-400 p-2 rounded-lg transition" title="Delete"><i class="fa-solid fa-trash-can text-xs"></i></button></td>
+                `;
+                listEl.appendChild(tr);
+            });
+        }
+        window.renderTransactions = renderTransactions;
+
+        function renderCharts() {
+            const filteredTxs = getFilteredTransactions();
+            const expenseDataMap = {};
+            if(categories.expense) categories.expense.forEach(c => expenseDataMap[c.name] = 0);
+            filteredTxs.filter(t => t.type === 'expense').forEach(t => {
+                if (expenseDataMap[t.category] !== undefined) expenseDataMap[t.category] += t.amount;
+                else expenseDataMap[t.category] = t.amount;
+            });
+
+            const expenseLabels = Object.keys(expenseDataMap).filter(k => expenseDataMap[k] > 0);
+            const expenseValues = expenseLabels.map(k => expenseDataMap[k]);
+            const expenseColors = ['#535353', '#3E3E3E', '#2A2A2A', '#666666', '#888888', '#FFFFFF', '#242424'];
+
+            const chartPieEl = document.getElementById('expenseChart');
+            if(chartPieEl) {
+                const ctxPie = chartPieEl.getContext('2d');
+                if (expenseChartInstance) expenseChartInstance.destroy();
+
+                if (expenseValues.length === 0) {
+                    expenseChartInstance = new Chart(ctxPie, {
+                        type: 'doughnut',
+                        data: { labels: ['此區間無支出數據'], datasets: [{ data: [1], backgroundColor: ['#242424'] }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#B3B3B3' } } } }
+                    });
+                } else {
+                    expenseChartInstance = new Chart(ctxPie, {
+                        type: 'doughnut',
+                        data: { labels: expenseLabels, datasets: [{ data: expenseValues, backgroundColor: expenseColors, borderWidth: 2, borderColor: '#181818' }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, color: '#B3B3B3', font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' } } } }, cutout: '70%' }
+                    });
+                }
+            }
+
+            let totalInc = 0, totalExp = 0;
+            filteredTxs.forEach(t => { if (t.type === 'income') totalInc += t.amount; else totalExp += t.amount; });
+
+            const chartBarEl = document.getElementById('barChart');
+            if(chartBarEl) {
+                const ctxBar = chartBarEl.getContext('2d');
+                if (barChartInstance) barChartInstance.destroy();
+
+                barChartInstance = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: { labels: ['總收入 (上升)', '總支出 (下跌)'], datasets: [{ data: [totalInc, totalExp], backgroundColor: ['#1DB954', '#F43F5E'], borderRadius: 8, barThickness: 40 }] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        layout: { padding: { left: 10, bottom: 5 } },
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#B3B3B3', font: { family: 'Plus Jakarta Sans', weight: '600' }, padding: 8 } },
+                            x: { grid: { display: false }, ticks: { color: '#B3B3B3', font: { family: 'Plus Jakarta Sans', weight: '600' } } }
+                        }
+                    }
+                });
+            }
+        }
+
+        function calculateReportData() {
+            const filteredTxs = getFilteredTransactions();
+            let totalInc = 0, totalExp = 0, maxExp = 0;
+            filteredTxs.forEach(t => {
+                if (t.type === 'income') totalInc += t.amount;
+                else { totalExp += t.amount; if (t.amount > maxExp) maxExp = t.amount; }
+            });
+            const savings = totalInc > 0 ? Math.max(0, Math.round(((totalInc - totalExp) / totalInc) * 100)) : 0;
+            const avgEl = document.getElementById('avgDailyExpense');
+            const maxEl = document.getElementById('maxExpenseItem');
+            const savEl = document.getElementById('savingsRate');
+            const advEl = document.getElementById('healthAdvice');
+
+            if(avgEl) avgEl.textContent = formatCurrency(totalExp / 30);
+            if(maxEl) maxEl.textContent = formatCurrency(maxExp);
+            if(savEl) savEl.textContent = `${savings}%`;
+            if(advEl) advEl.textContent = savings >= 30 ? '您的儲蓄表現極佳，財務健康狀況良好！' : '建議適度控制日常非必要開銷，提高儲蓄率。';
+        }
+
+        function exportTransactionsCSV() {
+            const filteredTxs = getFilteredTransactions();
+            if (filteredTxs.length === 0) { showToast('目前沒有可匯出的記錄', 'error'); return; }
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF類別,類型,金額,日期,備註\r\n";
+            filteredTxs.forEach(t => {
+                csvContent += `"${t.category}","${t.type === 'income' ? '收入' : '支出'}",${t.amount},"${t.date}","${t.note || ''}"\r\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `coink_report_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('CSV 報表匯出成功！');
+        }
+        window.exportTransactionsCSV = exportTransactionsCSV;
+
+        function exportTransactionsPDF() { window.print(); }
+        window.exportTransactionsPDF = exportTransactionsPDF;
+
+        function simulateVoiceRecord() {
+            const statusEl = document.getElementById('voiceStatusText');
+            if(statusEl) statusEl.textContent = '🎙️ 正在聆聽您的語音...';
+            setTimeout(() => {
+                const sampleNotes = [
+                    { cat: '餐飲食品', amt: 220, note: '晚餐吃火鍋' },
+                    { cat: '交通出行', amt: 60, note: '搭乘地鐵' },
+                    { cat: '購物消費', amt: 350, note: '便利店買日常用品' }
+                ];
+                const picked = sampleNotes[Math.floor(Math.random() * sampleNotes.length)];
+                const newTx = { id: Date.now().toString(), type: 'expense', amount: picked.amt, category: picked.cat, date: new Date().toISOString().split('T')[0], note: `AI語音識別：${picked.note}` };
+                transactions.unshift(newTx);
+                
+                saveAndRefresh();
+                if(statusEl) statusEl.textContent = `✨ AI 成功辨識並入帳：${picked.note} ${formatCurrency(picked.amt)}`;
+                showToast(`AI 語音記帳成功：${formatCurrency(picked.amt)}`);
+            }, 1500);
+        }
+        window.simulateVoiceRecord = simulateVoiceRecord;
+
+        function quickVoiceAdd(category, amount, note) {
+            const newTx = { id: Date.now().toString(), type: 'expense', amount, category, date: new Date().toISOString().split('T')[0], note: `快捷語音：${note}` };
+            transactions.unshift(newTx);
+            
+            saveAndRefresh();
+            closeSubModal('voiceAssistantModal');
+            showToast(`成功一秒入帳：${note} ${formatCurrency(amount)}`);
+        }
+        window.quickVoiceAdd = quickVoiceAdd;
+
+        function simulateScanInvoice() {
+            const inv = document.getElementById('invoiceNum');
+            if(inv) inv.value = 'HK' + Math.floor(10000000 + Math.random() * 90000000);
+            showToast('AI 成功掃描辨識消費金額 ' + formatCurrency(350));
+        }
+        window.simulateScanInvoice = simulateScanInvoice;
+
+        function saveInvoice() {
+            const inv = document.getElementById('invoiceNum');
+            const num = inv ? inv.value : '';
+            if(!num) { showToast('請輸入或掃描發票號碼', 'error'); return; }
+            const newTx = { id: Date.now().toString(), type: 'expense', amount: Math.floor(200 + Math.random() * 800), category: '購物消費', date: new Date().toISOString().split('T')[0], note: `電子發票 (${num})` };
+            transactions.unshift(newTx);
+            
+            saveAndRefresh();
+            closeSubModal('invoiceModal');
+            showToast('發票成功匯入記帳明細！');
+        }
+        window.saveInvoice = saveInvoice;
+
+        function calculateSplit() {
+            const tInput = document.getElementById('splitTotal');
+            const pInput = document.getElementById('splitPeople');
+            const resEl = document.getElementById('splitResult');
+
+            const total = parseFloat(tInput ? tInput.value : 0) || 0;
+            const people = parseInt(pInput ? pInput.value : 1) || 1;
+            const avg = Math.round(total / people);
+            if(resEl) resEl.textContent = `${formatCurrency(avg, true)} /人`;
+        }
+        window.calculateSplit = calculateSplit;
+
+        function renderCategoryManagerList() {
+            const container = document.getElementById('categoryListContainer');
+            if(!container) return;
+            container.innerHTML = '';
+            const allCats = [...(categories.expense || []).map(c => ({...c, typeLabel: '支出'})), ...(categories.income || []).map(c => ({...c, typeLabel: '收入'}))];
+            allCats.forEach(c => {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between p-2.5 bg-[#202020] rounded-xl border border-[#333333] text-xs";
+                div.innerHTML = `<div class="flex items-center space-x-2.5"><div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs shadow-sm border border-[#333333]" style="background-color: ${c.color}"><i class="fa-solid ${c.icon}"></i></div><span class="font-bold text-white">${c.name}</span><span class="text-[10px] text-[#B3B3B3] bg-[#242424] px-2 py-0.5 rounded-full font-bold">${c.typeLabel}</span></div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function addNewCategory() {
+            const tSel = document.getElementById('newCatType');
+            const nInput = document.getElementById('newCatName');
+            const type = tSel ? tSel.value : 'expense';
+            const name = nInput ? nInput.value.trim() : '';
+
+            if (!name) { showToast('請輸入分類名稱', 'error'); return; }
+            if(!categories[type]) categories[type] = [];
+            categories[type].push({ name, icon: 'fa-tag', color: '#333333' });
+            safeSetLocal('smart_categories_spotify', categories);
+            if(nInput) nInput.value = '';
+            renderCategoryManagerList();
+            updateCategoriesSelect();
+            showToast('成功新增分類！');
+        }
+        window.addNewCategory = addNewCategory;
+
+        async function fetchCpiAndRunSimulation() {
+            const regSel = document.getElementById('simRegion');
+            const savInput = document.getElementById('simMonthlySaving');
+            const monInput = document.getElementById('simMonthsCount');
+            const btn = document.getElementById('simExecBtn');
+
+            const region = regSel ? regSel.value : '香港 (Hong Kong)';
+            const monthlySaving = parseFloat(savInput ? savInput.value : 0) || 0;
+            const monthsCount = parseInt(monInput ? monInput.value : 12) || 12;
+
+            if (monthlySaving <= 0) { showToast('請輸入有效的每月儲蓄金額', 'error'); return; }
+            if(btn) { btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 正在連線查詢最新 CPI 與通膨數據...`; btn.disabled = true; }
+
+            let inflationRate = 0.021;
+            try {
+                const systemPrompt = "You are a senior financial analyst. Search for the latest Consumer Price Index (CPI) and annual inflation rate for the specified region. Return ONLY a valid JSON object in this exact format: {\"inflationRate\": 0.025, \"summary\": \"brief description\"}";
+                const userQuery = `Find the latest annual inflation rate / CPI for ${region} in 2026.`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: userQuery }] }], tools: [{ "google_search": {} }], systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { responseMimeType: "application/json" } })
+                });
+                const result = await response.json();
+                const parsed = JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+                if (parsed.inflationRate) inflationRate = parsed.inflationRate;
+            } catch(e) {}
+            finally {
+                if(btn) { btn.innerHTML = `<i class="fa-solid fa-satellite-dish"></i> 聯網查詢最新 CPI 與計算每月購買力`; btn.disabled = false; }
+            }
+
+            const monthlyInflationRate = inflationRate / 12;
+            let totalPrincipal = 0, totalRealPower = 0;
+            const listContainer = document.getElementById('monthlyInflationList');
+            if(listContainer) listContainer.innerHTML = '';
+
+            for (let m = 1; m <= monthsCount; m++) {
+                totalPrincipal += monthlySaving;
+                const discountedAmount = monthlySaving / Math.pow(1 + monthlyInflationRate, m);
+                totalRealPower += discountedAmount;
+                const monthLost = monthlySaving - discountedAmount;
+
+                if(listContainer) {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = "flex justify-between items-center bg-[#202020] px-3 py-2 rounded-lg text-xs border border-[#333333]";
+                    itemDiv.innerHTML = `<span class="text-[#B3B3B3] font-bold">第 ${m} 個月 (存 ${formatCurrency(monthlySaving, true)})</span><div class="text-right"><span class="text-white font-extrabold">${formatCurrency(discountedAmount, true)}</span><span class="text-rose-400 text-[10px] ml-1">(-${formatCurrency(monthLost, true).replace('-', '')})</span></div>`;
+                    listContainer.appendChild(itemDiv);
+                }
+            }
+
+            const totalLost = totalPrincipal - totalRealPower;
+            const tpEl = document.getElementById('resTotalPrincipal');
+            const rpEl = document.getElementById('resRealPurchasingPower');
+            const tlEl = document.getElementById('resTotalLost');
+            const stEl = document.getElementById('cpiLiveStatus');
+            const rcEl = document.getElementById('simResultContainer');
+
+            if(tpEl) tpEl.textContent = formatCurrency(totalPrincipal, true);
+            if(rpEl) rpEl.textContent = formatCurrency(totalRealPower, true);
+            if(tlEl) tlEl.textContent = '-' + formatCurrency(totalLost, true).replace('-', '');
+            if(stEl) stEl.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> 已成功連線 ${region} 最新 CPI（年通膨率估約 ${(inflationRate * 100).toFixed(2)}%）`;
+            if(rcEl) rcEl.classList.remove('hidden');
+            showToast('已完成全球即時 CPI 與每月購買力模擬！');
+        }
+        window.fetchCpiAndRunSimulation = fetchCpiAndRunSimulation;
+
+        function addNewGoal() {
+            const titleInput = document.getElementById('goalTitle');
+            const periodSel = document.getElementById('goalPeriod');
+            const amtInput = document.getElementById('goalAmount');
+            const deadInput = document.getElementById('goalDeadline');
+
+            const title = titleInput ? titleInput.value.trim() : '';
+            const period = periodSel ? periodSel.value : 'month';
+            const displayTarget = parseFloat(amtInput ? amtInput.value : 0);
+            const deadline = deadInput ? deadInput.value : '';
+
+            if (!title || isNaN(displayTarget) || displayTarget <= 0) { showToast('請填寫完整的目標名稱與有效金額', 'error'); return; }
+            const targetAmount = displayTarget / (exchangeRates[currentCurrency] || 1);
+            savingsGoals.push({ id: Date.now().toString(), title, period, targetAmount, deadline });
+            safeSetLocal('smart_savings_goals_spotify', savingsGoals);
+            if(titleInput) titleInput.value = '';
+            if(amtInput) amtInput.value = '';
+            if(deadInput) deadInput.value = '';
+            renderGoalsList();
+            showToast('成功新增儲蓄目標！');
+        }
+        window.addNewGoal = addNewGoal;
+
+        function deleteGoal(id) {
+            savingsGoals = savingsGoals.filter(g => g.id !== id);
+            safeSetLocal('smart_savings_goals_spotify', savingsGoals);
+            renderGoalsList();
+            showToast('已刪除該儲蓄目標');
+        }
+        window.deleteGoal = deleteGoal;
+
+        function renderGoalsList() {
+            const container = document.getElementById('goalsListContainer');
+            if(!container) return;
+            container.innerHTML = '';
+            if (savingsGoals.length === 0) { container.innerHTML = `<div class="text-center py-8 text-[#B3B3B3] text-xs">目前尚未設定任何儲蓄目標</div>`; return; }
+
+            const now = new Date();
+            savingsGoals.forEach(g => {
+                let currentSaved = 0;
+                transactions.forEach(t => {
+                    if (!t.date) return;
+                    const tDate = new Date(t.date);
+                    let match = g.period === 'month' ? (tDate.getFullYear() === now.getFullYear() && tDate.getMonth() === now.getMonth()) : g.period === 'year' ? (tDate.getFullYear() === now.getFullYear()) : true;
+                    if (match) { if (t.type === 'income') currentSaved += t.amount; else currentSaved -= t.amount; }
+                });
+                const progressAmt = Math.max(0, currentSaved);
+                const percent = Math.min(100, Math.round((progressAmt / g.targetAmount) * 100));
+                const diff = g.targetAmount - progressAmt;
+
+                const div = document.createElement('div');
+                div.className = "bg-[#202020] p-4 rounded-2xl border border-[#333333] space-y-2.5";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center"><span class="font-bold text-white text-xs">${g.title}</span><button onclick="deleteGoal('${g.id}')" class="text-[#B3B3B3] hover:text-white text-xs"><i class="fa-solid fa-trash-can"></i></button></div>
+                    <div class="flex justify-between text-xs text-[#B3B3B3]"><span>已存：<strong class="text-white">${formatCurrency(progressAmt)}</strong></span><span>目標：<strong class="text-white">${formatCurrency(g.targetAmount)}</strong></span></div>
+                    <div class="w-full bg-[#242424] h-2 rounded-full overflow-hidden border border-[#333333]"><div class="bg-white h-full rounded-full transition-all duration-500" style="width: ${percent}%;"></div></div>
+                    <div class="flex justify-between items-center text-[11px] pt-1 font-semibold"><span class="text-[#B3B3B3]">達成率: ${percent}%</span><span class="${diff > 0 ? 'text-amber-300' : 'text-emerald-400'}">${diff > 0 ? `距離目標還差 ${formatCurrency(diff)}` : '🎉 恭喜已達成目標！'}</span></div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addBudgetAllocation() {
+            const catSel = document.getElementById('budgetCategorySelect');
+            const limitInput = document.getElementById('budgetLimitAmount');
+
+            const category = catSel ? catSel.value : '';
+            const displayLimit = parseFloat(limitInput ? limitInput.value : 0);
+
+            if (isNaN(displayLimit) || displayLimit <= 0) { showToast('請輸入有效的預算金額', 'error'); return; }
+            const limit = displayLimit / (exchangeRates[currentCurrency] || 1);
+            const existing = salaryBudgets.find(b => b.category === category);
+            if (existing) existing.limit = limit;
+            else salaryBudgets.push({ id: Date.now().toString(), category, limit });
+            safeSetLocal('smart_salary_budgets_spotify', salaryBudgets);
+            if(limitInput) limitInput.value = '';
+            renderBudgetList();
+            showToast('薪資分配預算已更新！');
+        }
+        window.addBudgetAllocation = addBudgetAllocation;
+
+        function deleteBudget(id) {
+            salaryBudgets = salaryBudgets.filter(b => b.id !== id);
+            safeSetLocal('smart_salary_budgets_spotify', salaryBudgets);
+            renderBudgetList();
+            showToast('已刪除該範疇預算');
+        }
+        window.deleteBudget = deleteBudget;
+
+        function renderBudgetList() {
+            const container = document.getElementById('budgetListContainer');
+            if(!container) return;
+            container.innerHTML = '';
+            if (salaryBudgets.length === 0) { container.innerHTML = `<div class="text-center py-8 text-[#B3B3B3] text-xs">目前尚未設定任何薪資範疇預算</div>`; return; }
+
+            const now = new Date();
+            const spentMap = {};
+            transactions.forEach(t => {
+                if (!t.date) return;
+                const tDate = new Date(t.date);
+                if (tDate.getFullYear() === now.getFullYear() && tDate.getMonth() === now.getMonth() && t.type === 'expense') {
+                    spentMap[t.category] = (spentMap[t.category] || 0) + t.amount;
+                }
+            });
+
+            salaryBudgets.forEach(b => {
+                const spent = spentMap[b.category] || 0;
+                const remaining = b.limit - spent;
+                const percent = Math.min(100, Math.round((spent / b.limit) * 100));
+
+                const div = document.createElement('div');
+                div.className = "bg-[#202020] p-4 rounded-2xl border border-[#333333] space-y-2.5";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center"><span class="font-bold text-white text-xs"><i class="fa-solid fa-tag mr-1.5"></i>${b.category}</span><button onclick="deleteBudget('${b.id}')" class="text-[#B3B3B3] hover:text-white text-xs"><i class="fa-solid fa-trash-can"></i></button></div>
+                    <div class="flex justify-between text-xs text-[#B3B3B3]"><span>已花費：<strong class="text-white">${formatCurrency(spent)}</strong></span><span>預算上限：<strong class="text-white">${formatCurrency(b.limit)}</strong></span></div>
+                    <div class="w-full bg-[#242424] h-2 rounded-full overflow-hidden border border-[#333333]"><div class="bg-white h-full rounded-full transition-all duration-500" style="width: ${percent}%;"></div></div>
+                    <div class="flex justify-between items-center text-[11px] pt-1 font-semibold"><span class="text-[#B3B3B3]">已用: ${percent}%</span><span class="${remaining >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${remaining >= 0 ? `還剩可用：${formatCurrency(remaining)}` : `⚠️ 已超支：${formatCurrency(Math.abs(remaining))}`}</span></div>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        // --- Portfolio Tracker Logic ---
+        function addPortfolioHolding() {
+            const symInput = document.getElementById('portSymbol');
+            const sharesInput = document.getElementById('portShares');
+            const priceInput = document.getElementById('portAvgPrice');
+            
+            const symbol = symInput ? symInput.value.trim().toUpperCase() : '';
+            const shares = parseFloat(sharesInput ? sharesInput.value : 0);
+            const avgPrice = parseFloat(priceInput ? priceInput.value : 0);
+            
+            if (!symbol || isNaN(shares) || shares <= 0 || isNaN(avgPrice) || avgPrice < 0) {
+                showToast('請填寫完整的股票代碼與數字', 'error');
+                return;
+            }
+            
+            // Check if holding already exists to add to it or create new
+            const existingIndex = portfolioHoldings.findIndex(h => h.symbol === symbol);
+            if (existingIndex > -1) {
+                const existing = portfolioHoldings[existingIndex];
+                const totalCost = (existing.shares * existing.avgPrice) + (shares * avgPrice);
+                existing.shares += shares;
+                existing.avgPrice = totalCost / existing.shares;
+            } else {
+                portfolioHoldings.push({
+                    id: Date.now().toString(),
+                    symbol: symbol,
+                    shares: shares,
+                    avgPrice: avgPrice,
+                    currentPrice: avgPrice // default to avg price until refreshed
+                });
+            }
+            
+            safeSetLocal('smart_portfolio_spotify', portfolioHoldings);
+            
+            if(symInput) symInput.value = '';
+            if(sharesInput) sharesInput.value = '';
+            if(priceInput) priceInput.value = '';
+            
+            renderPortfolioList();
+            showToast(`已成功加入 ${symbol} 到投資組合！`);
+        }
+        window.addPortfolioHolding = addPortfolioHolding;
+        
+        function deletePortfolioHolding(id) {
+            portfolioHoldings = portfolioHoldings.filter(h => h.id !== id);
+            safeSetLocal('smart_portfolio_spotify', portfolioHoldings);
+            renderPortfolioList();
+            showToast('已移除該持股');
+        }
+        window.deletePortfolioHolding = deletePortfolioHolding;
+        
+        function renderPortfolioList() {
+            const container = document.getElementById('portfolioListContainer');
+            const totalValEl = document.getElementById('portTotalValue');
+            const totalRetEl = document.getElementById('portTotalReturn');
+            const retCardEl = document.getElementById('portTotalReturnCard');
+            
+            if(!container) return;
+            container.innerHTML = '';
+            
+            let totalValue = 0;
+            let totalCost = 0;
+            
+            if (portfolioHoldings.length === 0) { 
+                container.innerHTML = `<div class="text-center py-8 text-[#B3B3B3] text-xs">目前沒有任何持股紀錄</div>`; 
+                if (totalValEl) totalValEl.textContent = '$0.00';
+                if (totalRetEl) totalRetEl.textContent = '$0.00';
+                if (retCardEl) retCardEl.className = 'bg-[#242424] p-4 rounded-2xl border border-[#333333] flex flex-col justify-center items-center relative overflow-hidden';
+                return; 
+            }
+
+            portfolioHoldings.forEach(h => {
+                const holdingValue = h.shares * (h.currentPrice || h.avgPrice);
+                const holdingCost = h.shares * h.avgPrice;
+                const holdingPnl = holdingValue - holdingCost;
+                const holdingPnlPercent = holdingCost > 0 ? (holdingPnl / holdingCost) * 100 : 0;
+                
+                totalValue += holdingValue;
+                totalCost += holdingCost;
+                
+                const isPositive = holdingPnl >= 0;
+                const colorClass = isPositive ? 'text-[#1DB954]' : 'text-rose-500';
+                const sign = isPositive ? '+' : '';
+                
+                const div = document.createElement('div');
+                div.className = "bg-[#202020] p-4 rounded-2xl border border-[#333333]";
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-[#242424] flex items-center justify-center text-white text-xs shadow-sm border border-[#333333]"><i class="fa-solid fa-chart-simple"></i></div>
+                            <div>
+                                <h4 class="font-bold text-white text-sm tracking-wide">${h.symbol}</h4>
+                                <p class="text-[10px] text-[#B3B3B3]">${h.shares.toLocaleString()} 股 @ $${h.avgPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <h4 class="font-extrabold text-white text-sm">$${(h.currentPrice || h.avgPrice).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}</h4>
+                            <p class="text-[11px] font-bold ${colorClass}">${sign}${holdingPnlPercent.toFixed(2)}%</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs pt-2 border-t border-[#333333]">
+                        <span class="text-[#B3B3B3]">市值: <strong class="text-white">$${holdingValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></span>
+                        <span class="${colorClass} font-bold">${sign}$${holdingPnl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        <button onclick="deletePortfolioHolding('${h.id}')" class="text-[#B3B3B3] hover:text-white transition ml-2"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            
+            const totalPnl = totalValue - totalCost;
+            const totalPnlPercent = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+            const isTotalPositive = totalPnl >= 0;
+            const signTotal = isTotalPositive ? '+' : '';
+            
+            if (totalValEl) totalValEl.textContent = '$' + totalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (totalRetEl) {
+                totalRetEl.textContent = `${signTotal}$${totalPnl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${signTotal}${totalPnlPercent.toFixed(2)}%)`;
+                totalRetEl.className = `text-lg font-extrabold ${isTotalPositive ? 'text-[#1DB954]' : 'text-rose-500'}`;
+            }
+            if (retCardEl) {
+                retCardEl.className = `bg-[#242424] p-4 rounded-2xl border flex flex-col justify-center items-center relative overflow-hidden transition-colors duration-500 ${isTotalPositive ? 'border-[#1DB954]/40 bg-[#1DB954]/5' : 'border-rose-500/40 bg-rose-500/5'}`;
+            }
+        }
+        window.renderPortfolioList = renderPortfolioList;
+        
+        async function refreshPortfolioPrices() {
+            const btn = document.getElementById('refreshPricesBtn');
+            if(btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i>';
+            
+            // Simulating a network fetch delay
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            portfolioHoldings.forEach(h => {
+                // Determine a realistic base price for simulation
+                let basePrice = h.currentPrice || h.avgPrice || 10;
+                
+                // Specific ticker logic for realism in demo
+                if (h.symbol === 'QBTS' && basePrice === h.avgPrice) basePrice = 1.35;
+                if (h.symbol === 'AUR' && basePrice === h.avgPrice) basePrice = 6.80;
+                if (h.symbol === 'QUBT' && basePrice === h.avgPrice) basePrice = 2.10;
+                if (h.symbol === 'SPYL' && basePrice === h.avgPrice) basePrice = 15.20;
+                
+                // Random fluctuation between -3% and +3.5%
+                let fluctuation = (Math.random() * 0.065) - 0.03;
+                let newPrice = basePrice * (1 + fluctuation);
+                
+                // Ensure price doesn't drop below 0.0001
+                h.currentPrice = Math.max(0.0001, newPrice);
+            });
+            
+            safeSetLocal('smart_portfolio_spotify', portfolioHoldings);
+            renderPortfolioList();
+            
+            if(btn) btn.innerHTML = '<i class="fa-solid fa-rotate-right text-xs"></i>';
+            showToast('即時股價已成功更新！(模擬數據)');
+        }
+        window.refreshPortfolioPrices = refreshPortfolioPrices;
+
+    </script>
+</body>
+</html>                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #121212;
+            color: #FFFFFF;
+            min-height: 100vh;
+        }
+        .spotify-card {
+            background: #181818;
+            border: 1px solid #282828;
+            transition: background-color 0.3s ease;
+        }
+        .spotify-card:hover {
+            background: #202020;
+        }
+        .spotify-btn-gray {
+            background-color: #242424;
+            color: #FFFFFF;
+            transition: all 0.2s ease;
+        }
+        .spotify-btn-gray:hover {
+            background-color: #333333;
+            transform: scale(1.02);
+        }
+        .spotify-btn-active {
+            background-color: #FFFFFF !important;
+            color: #121212 !important;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333333;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555555;
+        }
+        @keyframes spinOnce {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-360deg); }
+        }
+        .animate-spin-once {
+            transform-origin: 50px 50px;
+            animation: spinOnce 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes splashFadeInUp {
+            0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-splash-fade {
+            animation: splashFadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes splashSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-360deg); }
+        }
+        .animate-splash-spin {
+            transform-origin: 50px 50px;
+            animation: splashSpin 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+    </style>
+</head>
+<body class="flex flex-col antialiased selection:bg-[#333333] selection:text-white">
+
+    <!-- Splash Screen -->
+<div id="splashScreen" class="fixed inset-0 bg-[#121212] z-[100] flex flex-col items-center justify-center pb-12 transition-opacity duration-700">
+    <div id="splashLogoGroup" class="relative flex flex-col items-center justify-center animate-splash-fade">
+        <svg class="w-32 h-32 sm:w-40 sm:h-40 mb-6" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g class="animate-splash-spin">
+                <path d="M 85.4 42 A 36.5 36.5 0 0 0 14.2 42" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+                <polygon points="4.5,41 24.5,41 14.5,52.5" fill="#FFFFFF"/>
+                <path d="M 14.6 58 A 36.5 36.5 0 0 0 85.8 58" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+                <polygon points="75.5,59 95.5,59 85.5,47.5" fill="#FFFFFF"/>
+            </g>
+            <g>
+                <line x1="50" y1="24" x2="50" y2="32" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+                <line x1="50" y1="68" x2="50" y2="76" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+                <path d="M 61.5 39.5 C 61.5 29.5, 38.5 29.5, 38.5 39.5 C 38.5 49.5, 61.5 49.5, 61.5 60.5 C 61.5 70.5, 38.5 70.5, 38.5 60.5" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+            </g>
+        </svg>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">Coink</h1>
+    </div>
+</div>
+
+<!-- Header -->
+<header class="relative overflow-hidden bg-[#121212] border-b border-[#282828]">
+        <div class="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 pt-6 pb-8 relative">
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div class="relative flex items-center justify-center cursor-pointer" onclick="replayLogoSpin()" title="點擊重播旋轉動畫">
+                    <svg class="w-16 h-16 sm:w-20 sm:h-20 relative z-10" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <g id="logoArrowsGroup" class="animate-spin-once">
+                            <path d="M 85.4 42 A 36.5 36.5 0 0 0 14.2 42" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+                            <polygon points="4.5,41 24.5,41 14.5,52.5" fill="#FFFFFF"/>
+                            <path d="M 14.6 58 A 36.5 36.5 0 0 0 85.8 58" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+                            <polygon points="75.5,59 95.5,59 85.5,47.5" fill="#FFFFFF"/>
+                        </g>
+                        <g>
+                            <line x1="50" y1="24" x2="50" y2="32" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+                            <line x1="50" y1="68" x2="50" y2="76" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+                            <path d="M 61.5 39.5 C 61.5 29.5, 38.5 29.5, 38.5 39.5 C 38.5 49.5, 61.5 49.5, 61.5 60.5 C 61.5 70.5, 38.5 70.5, 38.5 60.5" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="butt"/>
+                        </g>
+                    </svg>
+                </div>
+                <div class="flex items-center space-x-3 relative z-20">
+                    <button onclick="openFeatureMenu()" class="spotify-btn-gray px-4 py-2.5 rounded-full text-xs font-bold flex items-center space-x-2 shadow-sm border border-[#333333]">
+                        <i class="fa-solid fa-bars-staggered"></i>
+                        <span id="lblNavMenu" class="hidden sm:inline">功能選單</span>
+                    </button>
+                    <button onclick="openModal()" class="bg-white hover:bg-[#E2E8F0] text-[#121212] px-5 py-2.5 rounded-full text-xs font-extrabold shadow-lg transition duration-200 flex items-center space-x-2 transform active:scale-95">
+                        <i class="fa-solid fa-plus text-[10px]"></i>
+                        <span id="lblNavAdd">記帳</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Header -->
+            <div class="space-y-1.5 relative z-10">
+                <h1 id="mainDashboardGreeting" class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                    Hi 朋友
+                </h1>
+                <p class="text-xl sm:text-2xl font-bold text-white/90 tracking-tight leading-snug">
+                    Drop a coin, Track your life.
+                </p>
+                <p id="lblHeaderSubtitle" class="text-xs text-[#B3B3B3] font-medium tracking-wide pt-1">Coink · 個人智慧記帳與財務管理</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full space-y-8">
+        <!-- Date Filter -->
+        <div class="spotify-card p-4 sm:p-5 rounded-2xl flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
+                <button onclick="setPeriod('month')" id="btnPeriodMonth" class="px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 spotify-btn-active whitespace-nowrap">本月</button>
+                <button onclick="setPeriod('quarter')" id="btnPeriodQuarter" class="px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 spotify-btn-gray whitespace-nowrap">本季</button>
+                <button onclick="setPeriod('year')" id="btnPeriodYear" class="px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 spotify-btn-gray whitespace-nowrap">今年</button>
+                <button onclick="setPeriod('all')" id="btnPeriodAll" class="px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 spotify-btn-gray whitespace-nowrap">全部</button>
+            </div>
+            <div class="flex items-center space-x-2 w-full lg:w-auto justify-end flex-wrap gap-y-2">
+                <span id="lblRange" class="text-xs font-bold text-[#B3B3B3] uppercase tracking-wider">區間：</span>
+                <input type="date" id="startDate" onchange="setCustomPeriod()" class="bg-[#242424] border border-[#333333] text-white text-xs rounded-xl px-3 py-2 focus:outline-none">
+                <span id="lblTo" class="text-[#B3B3B3] text-xs">至</span>
+                <input type="date" id="endDate" onchange="setCustomPeriod()" class="bg-[#242424] border border-[#333333] text-white text-xs rounded-xl px-3 py-2 focus:outline-none">
+                <button onclick="resetPeriodFilter()" id="btnReset" class="spotify-btn-gray text-xs font-bold px-3 py-2 rounded-xl transition">重設</button>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="spotify-card p-6 rounded-2xl relative overflow-hidden group">
+                <div class="absolute right-5 top-5 w-12 h-12 rounded-full bg-[#242424] border border-[#333333] flex items-center justify-center text-white text-base cursor-pointer hover:bg-[#333333] transition" onclick="openInitialBalancePrompt()" title="設定初始資產結餘">
+                    <i class="fa-solid fa-vault"></i>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <p id="periodTitle" class="text-xs font-bold text-[#B3B3B3] uppercase tracking-wider mb-2">期間結餘 (本月)</p>
+                    <button onclick="openInitialBalancePrompt()" id="btnSetInitial" class="text-[10px] text-white font-bold bg-[#242424] hover:bg-[#333333] px-2 py-0.5 rounded-full mb-2 transition border border-[#333333]" title="設定初始結餘">
+                        <i class="fa-solid fa-pen mr-1"></i>設初始
+                    </button>
+                </div>
+                <h3 id="totalBalance" class="text-3xl font-extrabold text-white tracking-tight">HK$0.00</h3>
+                <div id="lblBalanceDesc" class="mt-4 flex items-center text-xs font-semibold text-[#B3B3B3] bg-[#242424] w-fit px-3 py-1.5 rounded-full border border-[#333333]">
+                    <i class="fa-solid fa-shield-halved mr-1.5 text-[#1DB954]"></i> 含初始結餘與淨利
+                </div>
+            </div>
+
+            <div class="spotify-card p-6 rounded-2xl relative overflow-hidden group">
+                <div class="absolute right-5 top-5 w-12 h-12 rounded-full bg-[#1DB954]/15 border border-[#1DB954]/30 flex items-center justify-center text-[#1DB954] text-base">
+                    <i class="fa-solid fa-arrow-trend-up"></i>
+                </div>
+                <p id="lblTotalIncomeTitle" class="text-xs font-bold text-[#B3B3B3] uppercase tracking-wider mb-2">期間總收入</p>
+                <h3 id="totalIncome" class="text-3xl font-extrabold text-[#1DB954] tracking-tight">HK$0.00</h3>
+                <div id="lblIncomeDesc" class="mt-4 flex items-center text-xs font-semibold text-[#1DB954] bg-[#1DB954]/10 w-fit px-3 py-1.5 rounded-full border border-[#1DB954]/25">
+                    <i class="fa-solid fa-arrow-up mr-1.5 text-[#1DB954]"></i> 現金流流入
+                </div>
+            </div>
+
+            <div class="spotify-card p-6 rounded-2xl relative overflow-hidden group">
+                <div class="absolute right-5 top-5 w-12 h-12 rounded-full bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500 text-base">
+                    <i class="fa-solid fa-arrow-trend-down"></i>
+                </div>
+                <p id="lblTotalExpenseTitle" class="text-xs font-bold text-[#B3B3B3] uppercase tracking-wider mb-2">期間總支出</p>
+                <h3 id="totalExpense" class="text-3xl font-extrabold text-rose-500 tracking-tight">HK$0.00</h3>
+                <div id="lblExpenseDesc" class="mt-4 flex items-center text-xs font-semibold text-rose-400 bg-rose-500/10 w-fit px-3 py-1.5 rounded-full border border-rose-500/25">
+                    <i class="fa-solid fa-arrow-down mr-1.5 text-rose-500"></i> 日常生活開銷
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="spotify-card p-6 rounded-2xl border border-[#333333]">
+                <h3 id="lblChartPieTitle" class="text-base font-bold text-white mb-6 flex items-center">
+                    <div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-3 text-xs border border-[#333333]"><i class="fa-solid fa-chart-pie"></i></div>
+                    支出分類佔比分析
+                </h3>
+                <div class="h-64 flex items-center justify-center relative"><canvas id="expenseChart"></canvas></div>
+            </div>
+            <div class="spotify-card p-6 rounded-2xl border border-[#333333]">
+                <h3 id="lblChartBarTitle" class="text-base font-bold text-white mb-6 flex items-center">
+                    <div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-3 text-xs border border-[#333333]"><i class="fa-solid fa-chart-column"></i></div>
+                    收支對比長條圖
+                </h3>
+                <div class="h-64 flex items-center justify-center relative"><canvas id="barChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Transactions -->
+        <div class="spotify-card rounded-2xl overflow-hidden border border-[#333333]">
+            <div class="p-6 border-b border-[#333333] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h3 id="lblTxListTitle" class="text-base font-bold text-white flex items-center">
+                    <div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-3 text-xs border border-[#333333]"><i class="fa-solid fa-stream"></i></div>
+                    收支明細串流
+                </h3>
+                <div class="flex items-center space-x-3 w-full sm:w-auto">
+                    <select id="filterType" onchange="renderTransactions()" class="bg-[#242424] border border-[#333333] text-white text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none">
+                        <option value="all" id="optFilterAll">全部記錄</option>
+                        <option value="income" id="optFilterIncome">僅看收入</option>
+                        <option value="expense" id="optFilterExpense">僅看支出</option>
+                    </select>
+                    <button onclick="clearAllData()" class="spotify-btn-gray text-white p-2.5 rounded-xl transition border border-[#333333]" title="清除所有資料"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-[#202020] text-[#B3B3B3] text-[11px] font-bold uppercase tracking-wider border-b border-[#333333]">
+                            <th id="thCategory" class="py-3 px-6">類別 / 備註</th>
+                            <th id="thDate" class="py-3 px-6">日期</th>
+                            <th id="thAmount" class="py-3 px-6">金額</th>
+                            <th id="thAction" class="py-3 px-6 text-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionList" class="divide-y divide-[#333333] text-sm font-medium"></tbody>
+                </table>
+            </div>
+            <div id="emptyState" class="hidden py-16 text-center text-[#B3B3B3]">
+                <div class="w-14 h-14 rounded-full bg-[#242424] border border-[#333333] text-white flex items-center justify-center mx-auto mb-3 text-xl"><i class="fa-solid fa-receipt"></i></div>
+                <p id="lblEmptyTitle" class="font-bold text-white">目前選定的區間尚無記帳資料</p>
+                <p id="lblEmptyDesc" class="text-xs text-[#B3B3B3] mt-1">點擊右上角「記帳」開始記錄您的日常收支吧！</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Feature Menu Modal -->
+    <div id="featureMenuModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-sm rounded-3xl p-6 relative border border-[#333333] shadow-2xl">
+            <button onclick="closeFeatureMenu()" class="absolute right-5 top-5 w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center transition border border-[#333333]"><i class="fa-solid fa-xmark text-sm"></i></button>
+            <div class="text-center mb-6">
+                <div class="w-11 h-11 rounded-full bg-[#242424] border border-[#333333] flex items-center justify-center text-white text-base mx-auto mb-2"><i class="fa-solid fa-compass"></i></div>
+                <h3 id="lblMenuTitle" class="font-extrabold text-lg text-white tracking-tight">功能選單</h3>
+                <p id="lblMenuSub" class="text-xs text-[#B3B3B3] mt-0.5">全方位智慧理財與分析工具</p>
+            </div>
+            <div class="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+                <!-- 新增：安裝為 App 的按鈕 -->
+                <button onclick="openA2hsModal()" class="w-full py-3 px-5 rounded-xl bg-white hover:bg-[#E2E8F0] text-[#121212] text-xs font-bold flex items-center justify-between group shadow-md transition transform active:scale-95">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#121212] text-white flex items-center justify-center text-xs"><i class="fa-solid fa-mobile-screen-button"></i></div><span id="menuA2hs">將 Coink 安裝為 App</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                </button>
+                <!-- 新增：投資組合追蹤 -->
+                <button onclick="openPortfolioModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-chart-line"></i></div><span id="menuPortfolio">投資組合即時追蹤</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openVoiceAssistantModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-microphone-lines"></i></div><span id="menuVoiceAI">AI 語音記帳助理</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openReportModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-chart-pie"></i></div><span id="menuReport">帳務報表與匯出</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openInvoiceModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-receipt"></i></div><span id="menuInvoice">發票記帳</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openWidgetModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-calculator"></i></div><span id="menuWidget">記帳小工具</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openSharedModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-user-group"></i></div><span id="menuShared">共享帳本</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openCategoryModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-layer-group"></i></div><span id="menuCategory">分類管理</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openRecurringModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-tag"></i></div><span id="menuRecurring">固定收支</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openGoalsModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-bullseye"></i></div><span id="menuGoals">儲蓄目標</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openBudgetModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-pie-chart"></i></div><span id="menuBudget">薪資分配預算</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+                <button onclick="openSimulateModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3 text-left"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333] shrink-0"><i class="fa-solid fa-earth-americas"></i></div><span id="menuSimulate">每月純儲蓄購買力侵蝕模擬</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3] shrink-0 ml-2"></i>
+                </button>
+                <button onclick="openSettingsModal()" class="w-full py-3 px-5 rounded-xl spotify-btn-gray text-white text-xs font-bold flex items-center justify-between group border border-[#333333]">
+                    <div class="flex items-center space-x-3"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center text-xs border border-[#333333]"><i class="fa-solid fa-gear"></i></div><span id="menuSettings">功能設定</span></div>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-[#B3B3B3]"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio Tracker Modal -->
+    <div id="portfolioModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-xl rounded-3xl p-6 space-y-5 border border-[#333333] max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('portfolioModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="portfolioModalTitle" class="text-base font-bold text-white flex items-center"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-chart-line"></i></div>投資組合與即時股價</h3>
+                <button onclick="refreshPortfolioPrices()" id="refreshPricesBtn" class="w-7 h-7 rounded-full bg-[#242424] hover:bg-[#333333] text-emerald-400 flex items-center justify-center border border-[#333333] transition ml-2" title="更新即時股價"><i class="fa-solid fa-rotate-right text-xs"></i></button>
+                <button onclick="closeSubModal('portfolioModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333] ml-auto"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            
+            <!-- Portfolio Summary -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-[#242424] p-4 rounded-2xl border border-[#333333] flex flex-col justify-center items-center">
+                    <p class="text-[10px] font-bold text-[#B3B3B3] uppercase tracking-wider mb-1" id="portTotalValueLabel">總投資市值</p>
+                    <h4 id="portTotalValue" class="text-xl font-extrabold text-white">$0.00</h4>
+                </div>
+                <div class="bg-[#242424] p-4 rounded-2xl border border-[#333333] flex flex-col justify-center items-center relative overflow-hidden" id="portTotalReturnCard">
+                    <p class="text-[10px] font-bold text-[#B3B3B3] uppercase tracking-wider mb-1" id="portTotalReturnLabel">總未實現損益</p>
+                    <h4 id="portTotalReturn" class="text-xl font-extrabold text-[#B3B3B3]">$0.00</h4>
+                </div>
+            </div>
+
+            <!-- Add Holding Form -->
+            <div class="bg-[#202020] p-4 rounded-2xl border border-[#333333] space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input type="text" id="portSymbol" placeholder="代碼 (例: QBTS)" class="uppercase bg-[#181818] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                    <input type="number" id="portShares" step="any" placeholder="持有股數" class="bg-[#181818] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                    <input type="number" id="portAvgPrice" step="any" placeholder="平均成本 ($)" class="bg-[#181818] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                </div>
+                <button id="portAddBtnText" onclick="addPortfolioHolding()" class="w-full py-2.5 bg-white hover:bg-[#E2E8F0] text-[#121212] text-xs font-extrabold rounded-xl transition shadow-md">新增持股紀錄</button>
+            </div>
+            
+            <!-- Holdings List -->
+            <div class="space-y-3" id="portfolioListContainer"></div>
+            
+            <button onclick="backToFeatureMenu('portfolioModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- AI Voice Assistant Modal -->
+    <div id="voiceAssistantModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-5 border border-[#333333] shadow-2xl text-center">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3 text-left">
+                <button onclick="backToFeatureMenu('voiceAssistantModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="voiceModalTitle" class="text-base font-bold text-white flex items-center">AI 語音助理</h3>
+                <button onclick="closeSubModal('voiceAssistantModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333]"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            <p id="voiceDesc" class="text-xs text-[#B3B3B3] leading-relaxed">常忘記或懶得手動輸入？只要點擊下方麥克風說出消費內容，AI 將自動幫您分門別類並完成記帳！</p>
+            <div class="py-6">
+                <button id="micBtn" onclick="simulateVoiceRecord()" class="w-20 h-20 rounded-full bg-white text-[#121212] hover:bg-[#E2E8F0] shadow-2xl flex items-center justify-center mx-auto text-2xl transition transform hover:scale-105 active:scale-95 border-4 border-[#333333]">
+                    <i class="fa-solid fa-microphone"></i>
+                </button>
+                <p id="voiceStatusText" class="text-xs text-[#B3B3B3] font-bold mt-3">點擊圖示開始說話 / 模擬語音輸入</p>
+            </div>
+            <div class="space-y-2 text-left">
+                <p id="voiceExamplesTitle" class="text-[11px] font-bold text-[#B3B3B3]">點擊以下範例一秒入帳：</p>
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="quickVoiceAdd('餐飲食品', 180, '午餐吃排骨飯')" class="spotify-btn-gray p-2.5 rounded-xl text-xs font-semibold text-left flex justify-between items-center border border-[#333333]">
+                        <span>🗣️「午餐吃排骨飯花 180」</span><i class="fa-solid fa-plus text-[10px]"></i>
+                    </button>
+                    <button onclick="quickVoiceAdd('交通出行', 500, '八達通加值')" class="spotify-btn-gray p-2.5 rounded-xl text-xs font-semibold text-left flex justify-between items-center border border-[#333333]">
+                        <span>🗣️「八達通加值 500 元」</span><i class="fa-solid fa-plus text-[10px]"></i>
+                    </button>
+                    <button onclick="quickVoiceAdd('購物消費', 1290, '網購衣服')" class="spotify-btn-gray p-2.5 rounded-xl text-xs font-semibold text-left flex justify-between items-center border border-[#333333]">
+                        <span>🗣️「網購衣服花 1290」</span><i class="fa-solid fa-plus text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+            <button onclick="backToFeatureMenu('voiceAssistantModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Transaction Modal -->
+    <div id="transactionModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-[#333333]">
+            <div class="p-6 border-b border-[#333333] flex justify-between items-center bg-[#202020]">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-full bg-white text-[#121212] flex items-center justify-center text-xs font-bold shadow-md"><i class="fa-solid fa-pen"></i></div>
+                    <h3 id="lblTxModalTitle" class="text-base font-bold text-white tracking-tight">新增記帳記錄</h3>
+                </div>
+                <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center transition border border-[#333333]"><i class="fa-solid fa-xmark text-sm"></i></button>
+            </div>
+            <form id="transactionForm" onsubmit="addTransaction(event)" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-2 p-1 bg-[#242424] rounded-xl border border-[#333333]">
+                    <button type="button" id="typeExpenseBtn" onclick="setType('expense')" class="py-2.5 rounded-lg text-xs font-bold transition-all bg-white text-[#121212] shadow-sm">支出</button>
+                    <button type="button" id="typeIncomeBtn" onclick="setType('income')" class="py-2.5 rounded-lg text-xs font-bold transition-all text-[#B3B3B3] hover:text-white">收入</button>
+                </div>
+                <input type="hidden" id="txType" value="expense">
+                <div>
+                    <label id="lblAmount" class="block text-xs font-bold text-[#B3B3B3] uppercase tracking-wider mb-2">金額</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-[#B3B3B3] font-bold">$</span>
+                        <input type="number" id="txAmount" required min="1" step="any" placeholder="0.00" class="w-full pl-9 pr-4 py-3 bg-[#242424] border border-[#333333] rounded-xl text-white font-extrabold text-base focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label id="lblCategory" class="block text-xs font-bold text-[#B3B3B3] uppercase tracking-wider mb-2">分類</label>
+                    <select id="txCategory" class="w-full px-4 py-3 bg-[#242424] border border-[#333333] rounded-xl text-white font-semibold text-xs focus:outline-none"></select>
+                </div>
+                <div>
+                    <label id="lblDate" class="block text-xs font-bold text-[#B3B3B3] uppercase tracking-wider mb-2">日期</label>
+                    <input type="date" id="txDate" required class="w-full px-4 py-3 bg-[#242424] border border-[#333333] rounded-xl text-white font-semibold text-xs focus:outline-none">
+                </div>
+                <div>
+                    <label id="lblNote" class="block text-xs font-bold text-[#B3B3B3] uppercase tracking-wider mb-2">備註 (選填)</label>
+                    <input type="text" id="txNote" placeholder="例如：午餐、交通費..." class="w-full px-4 py-3 bg-[#242424] border border-[#333333] rounded-xl text-white text-xs font-medium focus:outline-none">
+                </div>
+                <div class="pt-2 flex space-x-3">
+                    <button type="button" onclick="closeModal()" id="btnCancel" class="w-1/2 py-3 spotify-btn-gray text-white text-xs font-bold rounded-xl transition border border-[#333333]">取消</button>
+                    <button type="submit" id="btnSave" class="w-1/2 py-3 bg-white hover:bg-[#E2E8F0] text-[#121212] text-xs font-bold rounded-xl shadow-lg transition">確認儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-4 border border-[#333333]">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('settingsModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="lblSettingsTitle" class="text-base font-bold text-white flex items-center"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-gear"></i></div>功能設定</h3>
+                <button onclick="closeSubModal('settingsModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333]"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            <div class="space-y-2 text-xs">
+                <div class="flex justify-between items-center py-2.5 border-b border-[#333333] font-semibold text-white">
+                    <span id="lblNameSetting">顯示稱呼 (Name)</span>
+                    <input type="text" id="userNameInput" onchange="changeUserName(this.value)" placeholder="輸入稱呼" class="bg-[#242424] border border-[#333333] px-3 py-1.5 rounded-xl font-bold text-white w-28 sm:w-32 text-right focus:outline-none">
+                </div>
+                <div class="flex justify-between items-center py-2.5 border-b border-[#333333] font-semibold text-white">
+                    <span id="lblLangSetting">顯示語言 (Language)</span>
+                    <select id="langSelect" onchange="changeLanguage(this.value)" class="bg-[#242424] border border-[#333333] px-3 py-1.5 rounded-xl font-bold text-white">
+                        <option value="zh-TW">繁體中文</option>
+                        <option value="en">English</option>
+                        <option value="ja">日本語</option>
+                    </select>
+                </div>
+                <div class="flex justify-between items-center py-2.5 border-b border-[#333333] font-semibold text-white">
+                    <span id="lblInitialSetting">初始資產結餘 (不影響收支)</span>
+                    <button onclick="openInitialBalancePrompt()" id="btnSetInitialAmount" class="spotify-btn-gray text-white px-3 py-1.5 rounded-xl text-[11px] font-bold transition border border-[#333333]">設定金額</button>
+                </div>
+                <div class="flex justify-between items-center py-2.5 border-b border-[#333333] font-semibold text-white">
+                    <span id="lblCurrencySetting">顯示幣別</span>
+                    <select id="currencySelect" onchange="changeCurrency(this.value)" class="bg-[#242424] border border-[#333333] px-3 py-1.5 rounded-xl font-bold text-white">
+                        <option value="HKD">港幣 (HKD)</option>
+                        <option value="TWD">新台幣 (TWD)</option>
+                        <option value="CNY">人民幣 (CNY)</option>
+                        <option value="GBP">英鎊 (GBP)</option>
+                        <option value="EUR">歐元 (EUR)</option>
+                        <option value="USD">美元 (USD)</option>
+                        <option value="JPY">日圓 (JPY)</option>
+                        <option value="KRW">韓元 (KRW)</option>
+                    </select>
+                </div>
+                <div class="flex justify-between items-center py-2.5 font-semibold text-white">
+                    <span id="lblBackupSetting">資料備份與還原 (防清除紀錄)</span>
+                    <div class="flex space-x-1.5">
+                        <button onclick="exportJSONBackup()" class="spotify-btn-gray text-white px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition border border-[#333333]" title="下載備份檔"><i class="fa-solid fa-download mr-1"></i>備份</button>
+                        <label class="spotify-btn-gray text-white px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition border border-[#333333] cursor-pointer" title="上傳備份檔還原"><i class="fa-solid fa-upload mr-1"></i>還原 <input type="file" id="importFile" accept=".json" onchange="importJSONBackup(event)" class="hidden"></label>
+                    </div>
+                </div>
+            </div>
+            <button onclick="backToFeatureMenu('settingsModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Add to Home Screen (A2HS) Modal -->
+    <div id="a2hsModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-[140] flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-5 border border-[#333333] shadow-2xl">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('a2hsModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="a2hsTitleText" class="text-base font-bold text-white flex items-center">
+                    <div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                    安裝到手機主畫面
+                </h3>
+                <button onclick="closeSubModal('a2hsModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333]"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            <p id="a2hsDescText" class="text-xs text-[#B3B3B3] leading-relaxed">將 Coink 加入主畫面，即可像一般 App 般一鍵獨立開啟，全螢幕無干擾，更能避免清理瀏覽器分頁時不小心遺失紀錄喔！</p>
+            
+            <div class="space-y-4">
+                <!-- iOS Instructions -->
+                <div class="bg-[#242424] p-4 rounded-xl border border-[#333333]">
+                    <h4 id="a2hsIosTitleText" class="font-extrabold text-white text-sm mb-2">🍎 iOS (iPhone/iPad) 教學：</h4>
+                    <div class="space-y-2 text-xs text-[#B3B3B3] font-medium">
+                        <p id="a2hsIosStep1Text" class="flex items-center"><i class="fa-solid fa-arrow-up-from-bracket mr-2 text-white"></i> 1. 在 Safari 瀏覽器底部，點擊「分享」圖示</p>
+                        <p id="a2hsIosStep2Text" class="flex items-center"><i class="fa-solid fa-square-plus mr-2 text-white"></i> 2. 往下滑動，點選「加入主畫面」</p>
+                    </div>
+                </div>
+                
+                <!-- Android Instructions -->
+                <div class="bg-[#242424] p-4 rounded-xl border border-[#333333]">
+                    <h4 id="a2hsAndroidTitleText" class="font-extrabold text-white text-sm mb-2">🤖 Android (安卓) 教學：</h4>
+                    <div class="space-y-2 text-xs text-[#B3B3B3] font-medium">
+                        <p id="a2hsAndroidStep1Text" class="flex items-center"><i class="fa-solid fa-ellipsis-vertical mr-2 text-white"></i> 1. 在 Chrome 瀏覽器右上角，點擊「選單 (⋮)」</p>
+                        <p id="a2hsAndroidStep2Text" class="flex items-center"><i class="fa-solid fa-download mr-2 text-white"></i> 2. 點選「加到主畫面」或「安裝應用程式」</p>
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="closeSubModal('a2hsModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333]">我知道了</button>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="reportModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-4 border border-[#333333]">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('reportModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="reportModalTitle" class="text-base font-bold text-white flex items-center">帳務詳細報表與匯出</h3>
+                <button onclick="closeSubModal('reportModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333]"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            <div class="space-y-3 text-xs text-[#B3B3B3]">
+                <div class="bg-[#242424] p-4 rounded-xl border border-[#333333]">
+                    <p id="reportHealthTitle" class="font-bold text-white mb-1">財務健康診斷：</p>
+                    <p id="healthAdvice" class="text-white font-medium leading-relaxed">載入中...</p>
+                </div>
+                <div class="bg-[#242424] p-4 rounded-xl space-y-2.5 border border-[#333333]">
+                    <div class="flex justify-between items-center py-1 border-b border-[#333333]"><span id="reportAvgDailyLabel">平均每日支出</span><span id="avgDailyExpense" class="font-extrabold text-white">$0</span></div>
+                    <div class="flex justify-between items-center py-1 border-b border-[#333333]"><span id="reportMaxExpLabel">最高單筆支出</span><span id="maxExpenseItem" class="font-extrabold text-white">$0</span></div>
+                    <div class="flex justify-between items-center py-1"><span id="reportSavingsRateLabel">儲蓄率</span><span id="savingsRate" class="font-extrabold text-white">0%</span></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button id="reportCsvBtn" onclick="exportTransactionsCSV()" class="spotify-btn-gray py-2.5 rounded-xl font-bold text-white text-xs border border-[#333333]"><i class="fa-solid fa-file-csv mr-1.5 text-emerald-400"></i>匯出 CSV</button>
+                    <button id="reportPdfBtn" onclick="exportTransactionsPDF()" class="spotify-btn-gray py-2.5 rounded-xl font-bold text-white text-xs border border-[#333333]"><i class="fa-solid fa-file-pdf mr-1.5 text-rose-400"></i>匯出/列印 PDF</button>
+                </div>
+            </div>
+            <button onclick="backToFeatureMenu('reportModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Invoice Modal -->
+    <div id="invoiceModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-4 border border-[#333333]">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('invoiceModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="invoiceModalTitle" class="text-base font-bold text-white flex items-center">發票記帳與掃描</h3>
+                <button onclick="closeSubModal('invoiceModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333]"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div class="border-2 border-dashed border-[#333333] rounded-2xl p-6 text-center bg-[#242424] hover:bg-[#333333] transition cursor-pointer group" onclick="simulateScanInvoice()">
+                    <div class="w-12 h-12 rounded-full bg-[#202020] text-white flex items-center justify-center mx-auto mb-2 text-xl border border-[#333333]"><i class="fa-solid fa-camera"></i></div>
+                    <p id="invoiceScanText" class="font-bold text-white text-xs">點擊模擬掃描電子發票</p>
+                </div>
+                <input type="text" id="invoiceNum" maxlength="12" placeholder="例如：AB12345678" class="w-full px-4 py-3 bg-[#242424] border border-[#333333] rounded-xl text-white text-xs font-semibold">
+                <button id="invoiceSaveBtn" onclick="saveInvoice()" class="w-full py-3 bg-white hover:bg-[#E2E8F0] text-[#121212] text-xs font-bold rounded-xl shadow-lg transition">確認快速入帳</button>
+            </div>
+            <button onclick="backToFeatureMenu('invoiceModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Widget Modal -->
+    <div id="widgetModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-4 border border-[#333333]">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('widgetModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="widgetModalTitle" class="text-base font-bold text-white">快速分帳計算機</h3>
+                <button onclick="closeSubModal('widgetModal')"><i class="fa-solid fa-xmark text-xs text-white"></i></button>
+            </div>
+            <div class="space-y-4 text-xs">
+                <input type="number" id="splitTotal" placeholder="總金額" class="w-full px-4 py-3 bg-[#242424] border border-[#333333] rounded-xl text-white font-bold">
+                <input type="number" id="splitPeople" value="3" min="1" placeholder="人數" class="w-full px-4 py-3 bg-[#242424] border border-[#333333] rounded-xl text-white font-bold">
+                <div class="bg-[#242424] p-4 rounded-xl text-center border border-[#333333]"><h4 id="splitResult" class="text-2xl font-extrabold text-white">$0</h4></div>
+                <button id="widgetCalcBtn" onclick="calculateSplit()" class="w-full py-3 bg-white text-[#121212] font-bold rounded-xl">立即計算</button>
+            </div>
+            <button onclick="backToFeatureMenu('widgetModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Shared Modal -->
+    <div id="sharedModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-4 text-center border border-[#333333]">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3 text-left">
+                <button onclick="backToFeatureMenu('sharedModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="sharedModalTitle" class="text-base font-bold text-white">共享帳本</h3>
+                <button onclick="closeSubModal('sharedModal')"><i class="fa-solid fa-xmark text-xs text-white"></i></button>
+            </div>
+            <button id="sharedBtnText" onclick="showToast('已成功產生專屬邀請連結！')" class="w-full py-3 bg-white text-[#121212] font-bold rounded-xl text-xs">產生專屬邀請碼</button>
+            <button onclick="backToFeatureMenu('sharedModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="categoryModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-4 border border-[#333333]">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('categoryModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="categoryModalTitle" class="text-base font-bold text-white">分類與圖標管理</h3>
+                <button onclick="closeSubModal('categoryModal')"><i class="fa-solid fa-xmark text-xs text-white"></i></button>
+            </div>
+            <div class="bg-[#242424] p-4 rounded-xl border border-[#333333] space-y-3">
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="newCatType" class="bg-[#202020] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2"><option id="catOptExpense" value="expense">支出</option><option id="catOptIncome" value="income">收入</option></select>
+                    <input type="text" id="newCatName" placeholder="分類名稱" class="bg-[#202020] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2">
+                </div>
+                <button id="catAddBtnText" onclick="addNewCategory()" class="w-full py-2 bg-white text-[#121212] text-xs font-bold rounded-xl">確認新增分類</button>
+            </div>
+            <div class="space-y-2 max-h-36 overflow-y-auto pr-1" id="categoryListContainer"></div>
+            <button onclick="backToFeatureMenu('categoryModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Recurring Modal -->
+    <div id="recurringModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-4 border border-[#333333]">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('recurringModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="recurringModalTitle" class="text-base font-bold text-white">固定收支設定</h3>
+                <button onclick="closeSubModal('recurringModal')"><i class="fa-solid fa-xmark text-xs text-white"></i></button>
+            </div>
+            <button id="recurringBtnText" onclick="showToast('已成功新增固定扣款項目！')" class="w-full py-3 bg-white text-[#121212] font-bold rounded-xl text-xs">新增固定項目</button>
+            <button onclick="backToFeatureMenu('recurringModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Goals Modal -->
+    <div id="goalsModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-lg rounded-3xl p-6 space-y-5 border border-[#333333] max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('goalsModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="goalsModalTitle" class="text-base font-bold text-white flex items-center"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-bullseye"></i></div>儲蓄目標與進度追蹤</h3>
+                <button onclick="closeSubModal('goalsModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333]"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            <div class="bg-[#242424] p-4 rounded-2xl border border-[#333333] space-y-3">
+                <p id="goalsNewTitle" class="text-xs font-bold text-white mb-1"><i class="fa-solid fa-plus-circle mr-1.5"></i>設立新儲蓄目標</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input type="text" id="goalTitle" placeholder="目標名稱 (例如：買房基金、日本旅遊)" class="bg-[#202020] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                    <select id="goalPeriod" class="bg-[#202020] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                        <option id="goalOptMonth" value="month">本月儲蓄目標</option>
+                        <option id="goalOptYear" value="year">今年度儲蓄目標</option>
+                        <option id="goalOptCustom" value="custom">自訂期限目標</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input type="number" id="goalAmount" placeholder="目標金額 ($)" class="bg-[#202020] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                    <input type="date" id="goalDeadline" class="bg-[#202020] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                </div>
+                <button id="goalSaveBtnText" onclick="addNewGoal()" class="w-full py-2.5 bg-white hover:bg-[#E2E8F0] text-[#121212] text-xs font-extrabold rounded-xl transition shadow-md">儲存目標</button>
+            </div>
+            <div class="space-y-3" id="goalsListContainer"></div>
+            <button onclick="backToFeatureMenu('goalsModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Budget Modal -->
+    <div id="budgetModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-lg rounded-3xl p-6 space-y-5 border border-[#333333] max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('budgetModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="budgetModalTitle" class="text-base font-bold text-white flex items-center"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-pie-chart"></i></div>薪資分配與範疇預算追蹤</h3>
+                <button onclick="closeSubModal('budgetModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333]"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            <div class="bg-[#242424] p-4 rounded-2xl border border-[#333333] space-y-3">
+                <p id="budgetSettingTitle" class="text-xs font-bold text-white mb-1"><i class="fa-solid fa-wallet mr-1.5"></i>設定每次薪金分配預算</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input type="number" id="budgetSalaryInput" placeholder="每月總薪資 / 收入 ($)" class="bg-[#202020] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                    <select id="budgetCategorySelect" class="bg-[#202020] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none"></select>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input type="number" id="budgetLimitAmount" placeholder="分配預算上限 ($)" class="bg-[#202020] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                    <button id="budgetAddBtnText" onclick="addBudgetAllocation()" class="py-2.5 bg-white hover:bg-[#E2E8F0] text-[#121212] text-xs font-extrabold rounded-xl transition shadow-md">新增配置</button>
+                </div>
+            </div>
+            <div class="space-y-3" id="budgetListContainer"></div>
+            <button onclick="backToFeatureMenu('budgetModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Simulation Modal -->
+    <div id="simulateModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-xl rounded-3xl p-6 space-y-5 border border-[#333333] max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <button onclick="backToFeatureMenu('simulateModal')" class="w-8 h-8 rounded-full bg-[#242424] hover:bg-[#333333] text-white flex items-center justify-center border border-[#333333] transition" title="返回功能選單"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                <h3 id="simulateModalTitle" class="text-base font-bold text-white flex items-center"><div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-earth-americas"></i></div>每月純儲蓄購買力侵蝕模擬</h3>
+                <button onclick="closeSubModal('simulateModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333]"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            <p id="simDescText" class="text-xs text-[#B3B3B3] leading-relaxed">結合 Google Search 即時連線全球最新消費物價指數（CPI）與通膨數據，計算您將純儲蓄存放在銀行中，每個月隨著物價上漲而被悄悄吃掉多少真實購買力！</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label id="simRegionLabel" class="block text-xs font-bold text-[#B3B3B3] mb-1.5">選擇居住地區 / 國家</label>
+                    <select id="simRegion" class="w-full bg-[#242424] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                        <option value="香港 (Hong Kong)">香港 (Hong Kong)</option>
+                        <option value="台灣 (Taiwan)">台灣 (Taiwan)</option>
+                        <option value="美國 (United States)">美國 (United States)</option>
+                        <option value="日本 (Japan)">日本 (Japan)</option>
+                        <option value="歐元區 (Eurozone)">歐元區 (Eurozone)</option>
+                        <option value="英國 (United Kingdom)">英國 (United Kingdom)</option>
+                    </select>
+                </div>
+                <div>
+                    <label id="simSavingLabel" class="block text-xs font-bold text-[#B3B3B3] mb-1.5">每月純儲蓄金額 ($)</label>
+                    <input type="number" id="simMonthlySaving" value="5000" class="w-full bg-[#242424] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+                </div>
+            </div>
+            <div>
+                <label id="simMonthsLabel" class="block text-xs font-bold text-[#B3B3B3] mb-1.5">模擬月數 (個月)</label>
+                <input type="number" id="simMonthsCount" value="12" min="1" max="60" class="w-full bg-[#242424] border border-[#333333] text-white text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none">
+            </div>
+            <button onclick="fetchCpiAndRunSimulation()" id="simExecBtn" class="w-full py-3 bg-white hover:bg-[#E2E8F0] text-[#121212] text-xs font-extrabold rounded-xl transition shadow-lg flex items-center justify-center space-x-2"><i class="fa-solid fa-satellite-dish"></i><span id="simExecBtnText">聯網查詢最新 CPI 與計算每月購買力</span></button>
+            <div id="simResultContainer" class="hidden space-y-4 pt-2">
+                <div class="bg-[#242424] p-4 rounded-2xl border border-[#333333] space-y-2">
+                    <p id="cpiLiveStatus" class="text-xs font-bold text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i> 已透過即時網路取得最新 CPI 與通膨率數據</p>
+                    <div class="flex justify-between items-center text-xs text-[#B3B3B3] pt-1 border-t border-[#333333]"><span id="simPrincipalLabel">累積純儲蓄本金：</span><span id="resTotalPrincipal" class="font-bold text-white">$0</span></div>
+                    <div class="flex justify-between items-center text-xs text-[#B3B3B3]"><span id="simRealLabel">通膨調整後真實購買力：</span><span id="resRealPurchasingPower" class="font-bold text-emerald-400">$0</span></div>
+                    <div class="flex justify-between items-center text-xs text-[#B3B3B3]"><span id="simLostLabel">購買力被侵蝕損失：</span><span id="resTotalLost" class="font-bold text-rose-400">$0</span></div>
+                </div>
+                <div class="spotify-card rounded-xl p-3 border border-[#333333]">
+                    <p id="simMonthlyListLabel" class="text-xs font-bold text-white mb-2"><i class="fa-solid fa-calendar-days mr-1.5"></i>每個月純儲蓄剩餘購買力明細表：</p>
+                    <div class="max-h-48 overflow-y-auto pr-1 space-y-1.5" id="monthlyInflationList"></div>
+                </div>
+            </div>
+            <button onclick="backToFeatureMenu('simulateModal')" class="w-full py-3 spotify-btn-gray text-xs font-bold rounded-xl transition text-white border border-[#333333] flex items-center justify-center space-x-2"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-[#333333] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 border border-[#555555]">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-white text-base"></i>
+        <span id="toastMessage" class="font-semibold text-xs">提示訊息</span>
+    </div>
+
+    <!-- Initial Balance Modal -->
+    <div id="initialBalanceModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-[120] flex items-center justify-center p-4 hidden">
+        <div class="spotify-card w-full max-w-sm rounded-3xl p-6 space-y-4 border border-[#333333] shadow-2xl">
+            <div class="flex justify-between items-center border-b border-[#333333] pb-3">
+                <h3 id="initialModalTitleText" class="text-base font-bold text-white flex items-center">
+                    <div class="w-7 h-7 rounded-lg bg-[#242424] text-white flex items-center justify-center mr-2 text-xs border border-[#333333]"><i class="fa-solid fa-vault"></i></div>
+                    設定初始資產結餘
+                </h3>
+                <button onclick="closeSubModal('initialBalanceModal')" class="w-7 h-7 rounded-full bg-[#242424] text-white flex items-center justify-center border border-[#333333]"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+            <p id="initialModalDesc" class="text-xs text-[#B3B3B3] leading-relaxed">輸入您的初始資產總額（這不會影響收入與支出統計，僅加總在總結餘中）：</p>
+            <div>
+                <div class="relative">
+                    <span id="initialModalCurrencySymbol" class="absolute inset-y-0 left-0 pl-4 flex items-center text-[#B3B3B3] font-bold">HK$</span>
+                    <input type="number" id="initialBalanceInputVal" step="any" placeholder="0.00" class="w-full pl-12 pr-4 py-3 bg-[#242424] border border-[#333333] rounded-xl text-white font-extrabold text-base focus:outline-none">
+                </div>
+            </div>
+            <div class="pt-2 flex space-x-3">
+                <button type="button" onclick="closeSubModal('initialBalanceModal')" id="initialCancelBtn" class="w-1/2 py-3 spotify-btn-gray text-white text-xs font-bold rounded-xl transition border border-[#333333]">取消</button>
+                <button type="button" onclick="saveInitialBalanceFromModal()" id="initialSaveBtn" class="w-1/2 py-3 bg-white hover:bg-[#E2E8F0] text-[#121212] text-xs font-bold rounded-xl shadow-lg transition">確認儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome Reminder Modal -->
+    <div id="welcomeReminderModal" class="fixed inset-0 bg-[#121212]/80 backdrop-blur-md z-[130] flex items-center justify-center p-4 hidden transition-opacity duration-300 opacity-0">
+        <div class="spotify-card w-full max-w-md rounded-3xl p-6 space-y-5 border border-[#333333] shadow-2xl transform scale-95 transition-transform duration-300 relative" id="welcomeModalContent">
+            
+            <!-- Language Selector Inside Welcome Modal -->
+            <div class="absolute right-4 top-4 z-10">
+                <select id="welcomeLangSelect" onchange="changeLanguage(this.value)" class="bg-[#242424] border border-[#333333] text-white text-[10px] font-bold rounded-lg px-2 py-1 focus:outline-none hover:bg-[#333333] transition cursor-pointer">
+                    <option value="zh-TW">繁體中文</option>
+                    <option value="en">English</option>
+                    <option value="ja">日本語</option>
+                </select>
+            </div>
+
+            <div class="text-center pt-2">
+            <div class="w-12 h-12 rounded-full bg-[#1DB954]/10 text-[#1DB954] flex items-center justify-center mx-auto mb-3 text-xl border border-[#1DB954]/20"><i class="fa-solid fa-hand-sparkles"></i></div>
+            <h3 id="welcomeTitleText" class="text-xl font-extrabold text-white tracking-tight">歡迎使用 Coink</h3>
+        </div>
+        <div class="bg-[#242424] p-4 rounded-xl border border-[#333333] space-y-2.5 text-xs leading-relaxed text-[#B3B3B3]">
+            <p id="welcomeInfo1Text"><i class="fa-solid fa-shield-halved mr-1.5 text-emerald-400"></i>您的記帳資料僅安全地儲存於您的裝置上，享有 100% 的隱私。</p>
+            <p id="welcomeInfo2Text" class="text-amber-400 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>請務必定期至「設定」中備份資料，以免清除瀏覽紀錄時遺失。</p>
+            <p id="welcomeInfo3Text" class="text-[#1DB954] font-semibold"><i class="fa-solid fa-mobile-screen-button mr-1.5"></i>使用前請把Coink加進電話主頁面。</p>
+        </div>
+        <div class="space-y-2">
+            <label id="welcomeNamePromptText" class="block text-xs font-bold text-white mb-1.5">告訴我們該怎麼稱呼您：</label>
                 <input type="text" id="welcomeNameInput" placeholder="輸入您的稱呼 (例如：小明)" class="w-full px-4 py-3 bg-[#202020] border border-[#333333] rounded-xl text-white font-semibold text-sm focus:outline-none focus:border-[#1DB954] transition">
             </div>
             <div class="flex items-center space-x-2 pt-1">
